@@ -124,7 +124,7 @@ namespace Managers
 
         private async UniTask PlayCanvasIntroAnimation()
         {
-            _sfxManager.PlayFightSound();
+            //sfxManager.PlayFightSound();
             var playerRect = _playerCanvas.GetComponent<RectTransform>();
             var opponentRect = _opponentCanvas.GetComponent<RectTransform>();
             float screenWidth = playerRect?.parent.GetComponent<RectTransform>().rect.width ?? Screen.width;
@@ -406,6 +406,7 @@ namespace Managers
         private void InitializeMatch()
         {
             _matchData.SetStage(_currentStage);
+            BattleHistoryManager.Instance?.StartNewMatch(_currentStage);
 
             if (_uiManager != null)
             {
@@ -442,6 +443,7 @@ namespace Managers
             var opponentHand = GenerateOpponentHand(playerHand);
             var result = _gameJudge.DetermineResult(playerHand, opponentHand);
             _matchData.RecordResult(result);
+            BattleHistoryManager.Instance?.RecordRound(playerHand, opponentHand, result);
             if (_uiManager != null)
             {
                 _uiManager.ShowBattleResult(playerHand, opponentHand, result);
@@ -584,6 +586,11 @@ namespace Managers
         private async UniTask HandleMatchEnd(CancellationToken cancellationToken)
         {
             GameResult? winner = _matchData.GetWinner();
+            
+            if (winner.HasValue)
+            {
+                BattleHistoryManager.Instance?.CompleteMatch(winner.Value);
+            }
 
             await UniTask.Delay(2000, cancellationToken: cancellationToken);
 
