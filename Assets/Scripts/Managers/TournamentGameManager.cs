@@ -27,7 +27,6 @@ namespace Managers
         [SerializeField] private GameObject _startBackGround;
 
         [SerializeField] private Canvas _gameHealthCanvas;
-        [SerializeField] private Canvas _rpsSelectCanvas;
 
         [Header("Player & Opponent")] [SerializeField]
         private Animator _playerAnimator;
@@ -35,23 +34,6 @@ namespace Managers
         [SerializeField] private Animator _opponentAnimator;
         [SerializeField] private GameObject _playerCanvas;
         [SerializeField] private GameObject _opponentCanvas;
-
-        [Header("RPS Selection UI")] [SerializeField]
-        private GameObject _rockImage;
-
-        [SerializeField] private GameObject _rockText;
-        [SerializeField] private GameObject _paperImage;
-        [SerializeField] private GameObject _paperText;
-        [SerializeField] private GameObject _scissorsImage;
-        [SerializeField] private GameObject _scissorsText;
-
-        // Cached Image components for performance
-        private Image _rockImageComponent;
-        private Image _rockTextComponent;
-        private Image _paperImageComponent;
-        private Image _paperTextComponent;
-        private Image _scissorsImageComponent;
-        private Image _scissorsTextComponent;
 
         [Header("RoundStartUI")] [SerializeField]
         private GameObject _roundStartUIRock;
@@ -104,14 +86,6 @@ namespace Managers
             {
                 _uiManager = FindObjectOfType<UIManager>();
             }
-
-            // Cache Image components for performance
-            _rockImageComponent = _rockImage?.GetComponent<Image>();
-            _rockTextComponent = _rockText?.GetComponent<Image>();
-            _paperImageComponent = _paperImage?.GetComponent<Image>();
-            _paperTextComponent = _paperText?.GetComponent<Image>();
-            _scissorsImageComponent = _scissorsImage?.GetComponent<Image>();
-            _scissorsTextComponent = _scissorsText?.GetComponent<Image>();
         }
 
         #endregion
@@ -130,7 +104,6 @@ namespace Managers
             //await UniTask.Delay(2000);
             _canInput = true;
             _gameHealthCanvas.gameObject.SetActive(true);
-            _rpsSelectCanvas.gameObject.SetActive(true);
             StartRound().Forget();
         }
 
@@ -275,46 +248,7 @@ namespace Managers
             if (!_isCountingDown && !_canInput) return;
 
             _selectedHand = handType;
-
-            HighlightSelectedHand(handType);
         }
-
-        #region ColorChange
-
-        private void HighlightSelectedHand(HandType selectedHand)
-        {
-            ResetHandColors();
-
-            switch (selectedHand)
-            {
-                case HandType.Rock:
-                    if (_rockImageComponent != null) _rockImageComponent.color = Color.red;
-                    if (_rockTextComponent != null) _rockTextComponent.color = Color.red;
-                    break;
-                case HandType.Paper:
-                    if (_paperImageComponent != null) _paperImageComponent.color = Color.red;
-                    if (_paperTextComponent != null) _paperTextComponent.color = Color.red;
-                    break;
-                case HandType.Scissors:
-                    if (_scissorsImageComponent != null) _scissorsImageComponent.color = Color.red;
-                    if (_scissorsTextComponent != null) _scissorsTextComponent.color = Color.red;
-                    break;
-            }
-        }
-
-        private void ResetHandColors()
-        {
-            if (_rockImageComponent != null) _rockImageComponent.color = Color.white;
-            if (_rockTextComponent != null) _rockTextComponent.color = Color.white;
-
-            if (_paperImageComponent != null) _paperImageComponent.color = Color.white;
-            if (_paperTextComponent != null) _paperTextComponent.color = Color.white;
-
-            if (_scissorsImageComponent != null) _scissorsImageComponent.color = Color.white;
-            if (_scissorsTextComponent != null) _scissorsTextComponent.color = Color.white;
-        }
-
-        #endregion
 
         private async UniTaskVoid StartRound()
         {
@@ -337,7 +271,6 @@ namespace Managers
             _isCountingDown = true;
             _canInput = false;
             _selectedHand = null;
-            ResetHandColors();
 
             _balloon.SetActive(true);
 
@@ -351,8 +284,6 @@ namespace Managers
             {
                 _selectedHand = (HandType)Random.Range(0, 3);
             }
-
-            HighlightSelectedHand(_selectedHand.Value);
 
             await ProcessRound(_selectedHand.Value, cancellationToken);
 
@@ -460,6 +391,14 @@ namespace Managers
             var result = _gameJudge.DetermineResult(playerHand, opponentHand);
             _matchData.RecordResult(result);
             BattleHistoryManager.Instance?.RecordRound(playerHand, opponentHand, result);
+
+            // 플레이어와 상대방의 손 애니메이션 재생
+            PlayHandAnimation(_playerAnimator, playerHand);
+            PlayHandAnimation(_opponentAnimator, opponentHand);
+
+            // 손 보여주는 시간 대기
+            await UniTask.Delay(500, cancellationToken: cancellationToken);
+
             if (_uiManager != null)
             {
                 _uiManager.ShowBattleResult(playerHand, opponentHand, result);
@@ -493,7 +432,6 @@ namespace Managers
             else
             {
                 _roundInProgress = false;
-                ResetHandColors();
                 _canInput = true;
                 StartRound().Forget();
             }
@@ -528,6 +466,24 @@ namespace Managers
         #endregion
 
         #region PlayRoundAnimations
+
+        private void PlayHandAnimation(Animator animator, HandType hand)
+        {
+            if (animator == null) return;
+
+            switch (hand)
+            {
+                case HandType.Rock:
+                    animator.SetTrigger("Rock");
+                    break;
+                case HandType.Paper:
+                    animator.SetTrigger("Paper");
+                    break;
+                case HandType.Scissors:
+                    animator.SetTrigger("Scissors");
+                    break;
+            }
+        }
 
         private void PlayBattleAnimations(GameResult result)
         {
