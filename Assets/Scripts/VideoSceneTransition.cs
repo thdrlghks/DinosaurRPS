@@ -23,6 +23,8 @@ namespace DefaultNamespace
             if (_videoPlayer != null)
             {
                 _videoPlayer.loopPointReached += OnVideoEnd;
+                _videoPlayer.Play();
+                Debug.Log("Start Video");
             }
             else
             {

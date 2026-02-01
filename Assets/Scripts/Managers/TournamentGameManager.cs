@@ -45,6 +45,14 @@ namespace Managers
         [SerializeField] private GameObject _scissorsImage;
         [SerializeField] private GameObject _scissorsText;
 
+        // Cached Image components for performance
+        private Image _rockImageComponent;
+        private Image _rockTextComponent;
+        private Image _paperImageComponent;
+        private Image _paperTextComponent;
+        private Image _scissorsImageComponent;
+        private Image _scissorsTextComponent;
+
         [Header("RoundStartUI")] [SerializeField]
         private GameObject _roundStartUIRock;
 
@@ -96,6 +104,14 @@ namespace Managers
             {
                 _uiManager = FindObjectOfType<UIManager>();
             }
+
+            // Cache Image components for performance
+            _rockImageComponent = _rockImage?.GetComponent<Image>();
+            _rockTextComponent = _rockText?.GetComponent<Image>();
+            _paperImageComponent = _paperImage?.GetComponent<Image>();
+            _paperTextComponent = _paperText?.GetComponent<Image>();
+            _scissorsImageComponent = _scissorsImage?.GetComponent<Image>();
+            _scissorsTextComponent = _scissorsText?.GetComponent<Image>();
         }
 
         #endregion
@@ -272,30 +288,30 @@ namespace Managers
             switch (selectedHand)
             {
                 case HandType.Rock:
-                    _rockImage.GetComponent<UnityEngine.UI.Image>().color = Color.red;
-                    _rockText.GetComponent<UnityEngine.UI.Image>().color = Color.red;
+                    if (_rockImageComponent != null) _rockImageComponent.color = Color.red;
+                    if (_rockTextComponent != null) _rockTextComponent.color = Color.red;
                     break;
                 case HandType.Paper:
-                    _paperImage.GetComponent<UnityEngine.UI.Image>().color = Color.red;
-                    _paperText.GetComponent<UnityEngine.UI.Image>().color = Color.red;
+                    if (_paperImageComponent != null) _paperImageComponent.color = Color.red;
+                    if (_paperTextComponent != null) _paperTextComponent.color = Color.red;
                     break;
                 case HandType.Scissors:
-                    _scissorsImage.GetComponent<UnityEngine.UI.Image>().color = Color.red;
-                    _scissorsText.GetComponent<UnityEngine.UI.Image>().color = Color.red;
+                    if (_scissorsImageComponent != null) _scissorsImageComponent.color = Color.red;
+                    if (_scissorsTextComponent != null) _scissorsTextComponent.color = Color.red;
                     break;
             }
         }
 
         private void ResetHandColors()
         {
-            _rockImage.GetComponent<UnityEngine.UI.Image>().color = Color.white;
-            _rockText.GetComponent<UnityEngine.UI.Image>().color = Color.white;
+            if (_rockImageComponent != null) _rockImageComponent.color = Color.white;
+            if (_rockTextComponent != null) _rockTextComponent.color = Color.white;
 
-            _paperImage.GetComponent<UnityEngine.UI.Image>().color = Color.white;
-            _paperText.GetComponent<UnityEngine.UI.Image>().color = Color.white;
+            if (_paperImageComponent != null) _paperImageComponent.color = Color.white;
+            if (_paperTextComponent != null) _paperTextComponent.color = Color.white;
 
-            _scissorsImage.GetComponent<UnityEngine.UI.Image>().color = Color.white;
-            _scissorsText.GetComponent<UnityEngine.UI.Image>().color = Color.white;
+            if (_scissorsImageComponent != null) _scissorsImageComponent.color = Color.white;
+            if (_scissorsTextComponent != null) _scissorsTextComponent.color = Color.white;
         }
 
         #endregion
@@ -487,6 +503,10 @@ namespace Managers
 
         private void UpdateUI()
         {
+            // UI updates are handled in specific methods:
+            // - UpdateHealthBars() for health bar updates
+            // - UIManager.ShowBattleResult() for battle results
+            // This method is kept for potential future centralized UI updates
         }
 
         #region GenerateOpponentHand

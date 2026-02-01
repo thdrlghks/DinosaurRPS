@@ -238,16 +238,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3a687fd873448a8ab83609ab05f3a4e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _mainMenuScene: MainMenu
-  _storyIntroScene: StoryIntro
-  _quarterFinalsScene: QuarterFinals
-  _semiFinalsScene: SemiFinals
-  _finalRoundScene: FinalRound
-  _semiFinalsAnimationScene: SemiFinalsAnimation
-  _finalRoundAnimationScene: FinalRoundAnimation
-  _victoryAnimationScene: VictoryAnimation
-  _defeatAnimationScene: DefeatAnimation
+  _mainMenuScene: 00MainMenu
+  _startScene: 01Start
+  _start8Scene: 02Start8
+  _quarterFinalsScene: 03Forest
+  _end8Scene: 04End8
+  _start4Scene: 05Start4
+  _semiFinalsScene: 06Lava
+  _end4Scene: 07End4
+  _start2Scene: 08Start2
+  _finalRoundScene: 09Space
+  _end2Scene: 10End2
   _animationSceneDisplayTime: 3
+  _shortAnimationDisplayTime: 2
   _loadingScreenPrefab: {fileID: 0}
 --- !u!1 &91512852
 GameObject:
@@ -457,7 +460,7 @@ MonoBehaviour:
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
-          m_StringArgument: StoryIntro
+          m_StringArgument: 01Start
           m_BoolArgument: 0
         m_CallState: 2
 --- !u!1 &460239209

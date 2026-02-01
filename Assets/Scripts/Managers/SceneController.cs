@@ -27,20 +27,21 @@ namespace Managers
         }
 
         [Header("Scene Names")]
-        [SerializeField] private string _mainMenuScene = "MainMenu";
-        [SerializeField] private string _storyIntroScene = "StoryIntro";
-        [SerializeField] private string _quarterFinalsScene = "QuarterFinals";
-        [SerializeField] private string _semiFinalsScene = "SemiFinals";
-        [SerializeField] private string _finalRoundScene = "FinalRound";
-        
-        [Header("Animation Scene Names")]
-        [SerializeField] private string _semiFinalsAnimationScene = "SemiFinalsAnimation";
-        [SerializeField] private string _finalRoundAnimationScene = "FinalRoundAnimation";
-        [SerializeField] private string _victoryAnimationScene = "VictoryAnimation";
-        [SerializeField] private string _defeatAnimationScene = "DefeatAnimation";
+        [SerializeField] private string _mainMenuScene = "00MainMenu";
+        [SerializeField] private string _startScene = "01Start";
+        [SerializeField] private string _start8Scene = "02Start8";
+        [SerializeField] private string _quarterFinalsScene = "03Forest";  // 8강 전투
+        [SerializeField] private string _end8Scene = "04End8";
+        [SerializeField] private string _start4Scene = "05Start4";
+        [SerializeField] private string _semiFinalsScene = "06Lava";       // 4강 전투
+        [SerializeField] private string _end4Scene = "07End4";
+        [SerializeField] private string _start2Scene = "08Start2";
+        [SerializeField] private string _finalRoundScene = "09Space";      // 결승 전투
+        [SerializeField] private string _end2Scene = "10End2";             // 최종 승리
         
         [Header("Settings")]
         [SerializeField] private float _animationSceneDisplayTime = 3f;
+        [SerializeField] private float _shortAnimationDisplayTime = 2f;
         
         [Header("Loading UI (Optional)")]
         [SerializeField] private GameObject _loadingScreenPrefab;
@@ -110,11 +111,28 @@ namespace Managers
             LoadScene(_mainMenuScene);
         }
         
-        public void LoadStoryIntro()
+        /// <summary>
+        /// 00MainMenu에서 게임 시작 시 호출 - 01Start로 이동
+        /// </summary>
+        public void StartGame()
         {
-            LoadScene(_storyIntroScene);
+            StartCoroutine(StartGameSequence());
         }
-        
+
+        private IEnumerator StartGameSequence()
+        {
+            // 01Start (시작 애니메이션)
+            LoadScene(_startScene);
+            yield return new WaitForSeconds(_animationSceneDisplayTime);
+
+            // 02Start8 (8강 시작 애니메이션)
+            LoadScene(_start8Scene);
+            yield return new WaitForSeconds(_shortAnimationDisplayTime);
+
+            // 03Forest (8강 전투)
+            LoadScene(_quarterFinalsScene);
+        }
+
         public void StartTournament()
         {
             LoadScene(_quarterFinalsScene);
@@ -130,12 +148,12 @@ namespace Managers
         {
             string sceneName = stage switch
             {
-                TournamentStage.QuarterFinals => _quarterFinalsScene,
-                TournamentStage.SemiFinals => _semiFinalsScene,
-                TournamentStage.Finals => _finalRoundScene,
+                TournamentStage.QuarterFinals => _quarterFinalsScene,  // 03Forest
+                TournamentStage.SemiFinals => _semiFinalsScene,        // 06Lava
+                TournamentStage.Finals => _finalRoundScene,            // 09Space
                 _ => null
             };
-            
+
             if (!string.IsNullOrEmpty(sceneName))
             {
                 LoadScene(sceneName);
@@ -163,29 +181,36 @@ namespace Managers
             switch (currentStage)
             {
                 case TournamentStage.QuarterFinals:
-                    LoadScene(_semiFinalsAnimationScene);
+                    // 03Forest 승리 → 04End8 → 05Start4 → 06Lava
+                    LoadScene(_end8Scene);
                     yield return new WaitForSeconds(_animationSceneDisplayTime);
+                    LoadScene(_start4Scene);
+                    yield return new WaitForSeconds(_shortAnimationDisplayTime);
                     LoadScene(_semiFinalsScene);
                     break;
-                    
+
                 case TournamentStage.SemiFinals:
-                    LoadScene(_finalRoundAnimationScene);
+                    // 06Lava 승리 → 07End4 → 08Start2 → 09Space
+                    LoadScene(_end4Scene);
                     yield return new WaitForSeconds(_animationSceneDisplayTime);
+                    LoadScene(_start2Scene);
+                    yield return new WaitForSeconds(_shortAnimationDisplayTime);
                     LoadScene(_finalRoundScene);
                     break;
-                    
+
                 case TournamentStage.Finals:
-                    LoadScene(_victoryAnimationScene);
+                    // 09Space 승리 → 10End2 (최종 승리)
+                    LoadScene(_end2Scene);
                     yield return new WaitForSeconds(_animationSceneDisplayTime);
                     LoadMainMenu();
                     break;
             }
         }
-        
+
         private IEnumerator HandleTournamentDefeat()
         {
-            LoadScene(_defeatAnimationScene);
-            yield return new WaitForSeconds(_animationSceneDisplayTime);
+            // 패배 시 메인 메뉴로 (나중에 별도 패배 씬 추가 가능)
+            yield return new WaitForSeconds(1f);
             LoadMainMenu();
         }
         
