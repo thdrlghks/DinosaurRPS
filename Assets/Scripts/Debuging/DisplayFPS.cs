@@ -6,10 +6,14 @@ namespace Debuging
     {
         float deltaTime = 0.0f;
 
+        private void Awake()
+        {
+               DontDestroyOnLoad(gameObject);
+        }
+
         void Update()
         {
             deltaTime += (Time.deltaTime - deltaTime) * 0.1f;
-            DontDestroyOnLoad(gameObject);
         }
 
         void OnGUI()

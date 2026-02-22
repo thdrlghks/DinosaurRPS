@@ -5284,17 +5284,10 @@ MonoBehaviour:
   _uiManager: {fileID: 133668045}
   _startBackGround: {fileID: 932984419}
   _gameHealthCanvas: {fileID: 1662154279}
-  _rpsSelectCanvas: {fileID: 2100806730}
   _playerAnimator: {fileID: 854303576}
   _opponentAnimator: {fileID: 854303576}
   _playerCanvas: {fileID: 297354663}
   _opponentCanvas: {fileID: 14308241}
-  _rockImage: {fileID: 1458964265}
-  _rockText: {fileID: 385258202}
-  _paperImage: {fileID: 1794665012}
-  _paperText: {fileID: 690914986}
-  _scissorsImage: {fileID: 410720106}
-  _scissorsText: {fileID: 558606118}
   _roundStartUIRock: {fileID: 922192997}
   _roundStartUIPaper: {fileID: 1843210469}
   _roundStartUIScissors: {fileID: 1131942537}

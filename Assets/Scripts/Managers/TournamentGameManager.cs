@@ -42,6 +42,12 @@ namespace Managers
         [SerializeField] private GameObject _roundStartUIScissors;
         [SerializeField] private GameObject _balloon;
 
+        [Header("RPS Select UI")]
+        [SerializeField] private GameObject _rpsSelectCanvas;
+        [SerializeField] private Image _rpsRockImage;
+        [SerializeField] private Image _rpsPaperImage;
+        [SerializeField] private Image _rpsScissorsImage;
+
         [Header("Camera & Settings")] [SerializeField]
         private CAMController _camController;
 
@@ -248,6 +254,7 @@ namespace Managers
             if (!_isCountingDown && !_canInput) return;
 
             _selectedHand = handType;
+            HighlightRPSSelection(handType);
         }
 
         private async UniTaskVoid StartRound()
@@ -273,12 +280,14 @@ namespace Managers
             _selectedHand = null;
 
             _balloon.SetActive(true);
+            ShowRPSSelectUI();
 
             var countdownTask = ExecuteCountdownAnimations(cancellationToken);
 
             await countdownTask;
 
             _isCountingDown = false;
+            HideRPSSelectUI();
 
             if (!_selectedHand.HasValue)
             {
@@ -520,6 +529,50 @@ namespace Managers
                         break;
                 }
             }
+        }
+
+        #endregion
+
+        #region RPSSelectUI
+
+        private readonly Color _defaultColor = Color.white;
+        private readonly Color _selectedColor = Color.red;
+
+        private void ShowRPSSelectUI()
+        {
+            if (_rpsSelectCanvas != null)
+                _rpsSelectCanvas.SetActive(true);
+
+            ResetRPSColors();
+        }
+
+        private void HideRPSSelectUI()
+        {
+            if (_rpsSelectCanvas != null)
+                _rpsSelectCanvas.SetActive(false);
+        }
+
+        private void HighlightRPSSelection(HandType handType)
+        {
+            ResetRPSColors();
+
+            var targetImage = handType switch
+            {
+                HandType.Rock => _rpsRockImage,
+                HandType.Paper => _rpsPaperImage,
+                HandType.Scissors => _rpsScissorsImage,
+                _ => null
+            };
+
+            if (targetImage != null)
+                targetImage.color = _selectedColor;
+        }
+
+        private void ResetRPSColors()
+        {
+            if (_rpsRockImage != null) _rpsRockImage.color = _defaultColor;
+            if (_rpsPaperImage != null) _rpsPaperImage.color = _defaultColor;
+            if (_rpsScissorsImage != null) _rpsScissorsImage.color = _defaultColor;
         }
 
         #endregion
