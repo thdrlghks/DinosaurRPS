@@ -59,7 +59,7 @@ public class CAMController : MonoBehaviour
         isCameraReady = false; // 카메라 전환 시작
         Switchcam.SwitchCam(1);
 
-        await UniTask.Delay((int)(cameraTransitionTime * 2000));
+        await UniTask.Delay((int)(cameraTransitionTime * 1000));
         Switchcam.SwitchCam(0);
 
         // 카메라 전환 완료

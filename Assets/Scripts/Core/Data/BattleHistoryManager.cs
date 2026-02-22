@@ -130,6 +130,12 @@ namespace Core.Data
             string json = PlayerPrefs.GetString(SAVE_KEY);
             var data = JsonUtility.FromJson<BattleHistorySaveData>(json);
 
+            if (data?.Matches == null)
+            {
+                Debug.LogWarning("[BattleHistory] 저장 데이터가 손상되어 무시합니다.");
+                return;
+            }
+
             _matchHistory.Clear();
             foreach (var matchData in data.Matches)
             {

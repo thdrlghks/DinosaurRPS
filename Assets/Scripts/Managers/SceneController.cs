@@ -70,23 +70,29 @@ namespace Managers
             {
                 return;
             }
-            
+
             if (string.IsNullOrEmpty(sceneName))
             {
                 return;
             }
-            
+
             OnSceneLoadStarted?.Invoke(sceneName);
             StartCoroutine(LoadSceneAsync(sceneName));
         }
-        
-        private IEnumerator LoadSceneAsync(string sceneName)
+
+        /// <summary>
+        /// 씬 로딩 완료까지 대기하는 코루틴 버전. 시퀀스 내부에서 사용.
+        /// </summary>
+        private IEnumerator LoadSceneAndWait(string sceneName)
         {
+            if (string.IsNullOrEmpty(sceneName)) yield break;
+
+            OnSceneLoadStarted?.Invoke(sceneName);
             _isLoading = true;
             ShowLoadingScreen();
-            
+
             AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName);
-            
+
             if (asyncLoad == null)
             {
                 Debug.LogError($"Failed to load scene: {sceneName}");
@@ -94,13 +100,38 @@ namespace Managers
                 _isLoading = false;
                 yield break;
             }
-            
+
+            while (!asyncLoad.isDone)
+            {
+                yield return null;
+            }
+
+            HideLoadingScreen();
+            _isLoading = false;
+            OnSceneLoadCompleted?.Invoke(sceneName);
+        }
+
+        private IEnumerator LoadSceneAsync(string sceneName)
+        {
+            _isLoading = true;
+            ShowLoadingScreen();
+
+            AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName);
+
+            if (asyncLoad == null)
+            {
+                Debug.LogError($"Failed to load scene: {sceneName}");
+                HideLoadingScreen();
+                _isLoading = false;
+                yield break;
+            }
+
             while (!asyncLoad.isDone)
             {
                 float progress = Mathf.Clamp01(asyncLoad.progress / 0.9f);
                 yield return null;
             }
-            
+
             HideLoadingScreen();
             _isLoading = false;
             OnSceneLoadCompleted?.Invoke(sceneName);
@@ -122,15 +153,15 @@ namespace Managers
         private IEnumerator StartGameSequence()
         {
             // 01Start (시작 애니메이션)
-            LoadScene(_startScene);
+            yield return LoadSceneAndWait(_startScene);
             yield return new WaitForSeconds(_animationSceneDisplayTime);
 
             // 02Start8 (8강 시작 애니메이션)
-            LoadScene(_start8Scene);
+            yield return LoadSceneAndWait(_start8Scene);
             yield return new WaitForSeconds(_shortAnimationDisplayTime);
 
             // 03Forest (8강 전투)
-            LoadScene(_quarterFinalsScene);
+            yield return LoadSceneAndWait(_quarterFinalsScene);
         }
 
         public void StartTournament()
@@ -182,27 +213,27 @@ namespace Managers
             {
                 case TournamentStage.QuarterFinals:
                     // 03Forest 승리 → 04End8 → 05Start4 → 06Lava
-                    LoadScene(_end8Scene);
+                    yield return LoadSceneAndWait(_end8Scene);
                     yield return new WaitForSeconds(_animationSceneDisplayTime);
-                    LoadScene(_start4Scene);
+                    yield return LoadSceneAndWait(_start4Scene);
                     yield return new WaitForSeconds(_shortAnimationDisplayTime);
-                    LoadScene(_semiFinalsScene);
+                    yield return LoadSceneAndWait(_semiFinalsScene);
                     break;
 
                 case TournamentStage.SemiFinals:
                     // 06Lava 승리 → 07End4 → 08Start2 → 09Space
-                    LoadScene(_end4Scene);
+                    yield return LoadSceneAndWait(_end4Scene);
                     yield return new WaitForSeconds(_animationSceneDisplayTime);
-                    LoadScene(_start2Scene);
+                    yield return LoadSceneAndWait(_start2Scene);
                     yield return new WaitForSeconds(_shortAnimationDisplayTime);
-                    LoadScene(_finalRoundScene);
+                    yield return LoadSceneAndWait(_finalRoundScene);
                     break;
 
                 case TournamentStage.Finals:
                     // 09Space 승리 → 10End2 (최종 승리)
-                    LoadScene(_end2Scene);
+                    yield return LoadSceneAndWait(_end2Scene);
                     yield return new WaitForSeconds(_animationSceneDisplayTime);
-                    LoadMainMenu();
+                    yield return LoadSceneAndWait(_mainMenuScene);
                     break;
             }
         }
@@ -211,7 +242,7 @@ namespace Managers
         {
             // 패배 시 메인 메뉴로 (나중에 별도 패배 씬 추가 가능)
             yield return new WaitForSeconds(1f);
-            LoadMainMenu();
+            yield return LoadSceneAndWait(_mainMenuScene);
         }
         
         public string GetCurrentSceneName()
