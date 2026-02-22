@@ -227,7 +227,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 423.2196, y: 0}
+  m_AnchoredPosition: {x: 951.91724, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &14308243
@@ -1504,7 +1504,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -423.2196, y: 0}
+  m_AnchoredPosition: {x: -951.91724, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &297354665
@@ -4051,7 +4051,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 71c96a971be73914c975a5ba4f08a269, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1887911735}
   m_SourcePrefab: {fileID: 100100000, guid: 71c96a971be73914c975a5ba4f08a269, type: 3}
 --- !u!1 &1156306939
 GameObject:
@@ -7521,6 +7524,33 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1859647367}
   m_Mesh: {fileID: 4300000, guid: 57d3eed6d2253d24994d5ad37e00aedc, type: 3}
+--- !u!1 &1887911731 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 71c96a971be73914c975a5ba4f08a269, type: 3}
+  m_PrefabInstance: {fileID: 1137450149}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &1887911735
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1887911731}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 0}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &1929946288
 GameObject:
   m_ObjectHideFlags: 0
@@ -8099,6 +8129,10 @@ MonoBehaviour:
   _roundStartUIPaper: {fileID: 1843210469}
   _roundStartUIScissors: {fileID: 1131942537}
   _balloon: {fileID: 182900041}
+  _rpsSelectCanvas: {fileID: 1568480016}
+  _rpsRockImage: {fileID: 1207338049}
+  _rpsPaperImage: {fileID: 343515538}
+  _rpsScissorsImage: {fileID: 1987225686}
   _camController: {fileID: 341776527}
   _resultDisplayTime: 2
 --- !u!4 &2043612405
