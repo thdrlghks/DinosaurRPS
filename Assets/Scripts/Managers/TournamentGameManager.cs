@@ -311,7 +311,7 @@ namespace Managers
                 await UITweenUtil.ScaleUpAndFadeOutAsync(
                     _roundStartUIScissors.transform,
                     new Vector3(1.2f, 1.2f, 1f),
-                    new Vector3(3.6f, 3.6f, 3f),
+                    new Vector3(1.8f, 1.8f, 1.5f),
                     2f,
                     0.5f,
                     cancellationToken
@@ -323,7 +323,7 @@ namespace Managers
                 await UITweenUtil.ScaleUpAndFadeOutAsync(
                     _roundStartUIRock.transform,
                     new Vector3(1.2f, 1.2f, 1f),
-                    new Vector3(3.6f, 3.6f, 3f),
+                    new Vector3(1.8f, 1.8f, 1.5f),
                     2f,
                     0.5f,
                     cancellationToken
@@ -335,7 +335,7 @@ namespace Managers
                 await UITweenUtil.ScaleUpAndFadeOutAsync(
                     _roundStartUIPaper.transform,
                     new Vector3(1.2f, 1.2f, 1f),
-                    new Vector3(3.6f, 3.6f, 3f),
+                    new Vector3(1.8f, 1.8f, 1.5f),
                     2f,
                     0.5f,
                     cancellationToken
@@ -501,12 +501,11 @@ namespace Managers
                 switch (result)
                 {
                     case GameResult.Win:
-                        _playerAnimator.SetTrigger("Win");
-                        //camController.playWin = true;
+                        var playerWinTrigger = Random.Range(0, 2) == 0 ? "Win" : "Win2";
+                        _playerAnimator.SetTrigger(playerWinTrigger);
                         break;
                     case GameResult.Lose:
-                        _playerAnimator.SetTrigger("Defeat");
-                        //camController.playLose = true;
+                        _playerAnimator.SetTrigger("Lose");
                         break;
                     case GameResult.Draw:
                         _playerAnimator.SetTrigger("Draw");
@@ -519,10 +518,11 @@ namespace Managers
                 switch (result)
                 {
                     case GameResult.Win:
-                        _opponentAnimator.SetTrigger("Defeat");
+                        _opponentAnimator.SetTrigger("Lose");
                         break;
                     case GameResult.Lose:
-                        _opponentAnimator.SetTrigger("Victory");
+                        var opponentWinTrigger = Random.Range(0, 2) == 0 ? "Win" : "Win2";
+                        _opponentAnimator.SetTrigger(opponentWinTrigger);
                         break;
                     case GameResult.Draw:
                         _opponentAnimator.SetTrigger("Draw");
@@ -581,16 +581,8 @@ namespace Managers
 
         private void ResetAnimations()
         {
-            if (_playerAnimator != null)
-            {
-                _playerAnimator.SetTrigger("Idle");
-                //camController.returnMainCam = true;
-            }
-
-            if (_opponentAnimator != null)
-            {
-                _opponentAnimator.SetTrigger("Idle");
-            }
+            // Win/Lose/Draw 애니메이션 종료 후 Transition에 의해 자동으로 Idle 복귀
+            //camController.returnMainCam = true;
         }
 
         #endregion
@@ -599,13 +591,17 @@ namespace Managers
 
         private void UpdateHealthBars(GameResult result)
         {
-            if (_uiManager != null)
+            if (_uiManager == null)
             {
-                var playerHealth = GetMaxHealthForStage(_currentStage, true) - _matchData.OpponentWins;
-                var opponentHealth = GetMaxHealthForStage(_currentStage, false) - _matchData.PlayerWins;
-
-                _uiManager.UpdateHealthBars(playerHealth, opponentHealth);
+                Debug.LogWarning("[UpdateHealthBars] _uiManager is null!");
+                return;
             }
+
+            var playerHealth = GetMaxHealthForStage(_currentStage, true) - _matchData.OpponentWins;
+            var opponentHealth = GetMaxHealthForStage(_currentStage, false) - _matchData.PlayerWins;
+
+            Debug.Log($"[UpdateHealthBars] stage={_currentStage}, playerHP={playerHealth}, opponentHP={opponentHealth}");
+            _uiManager.UpdateHealthBars(playerHealth, opponentHealth);
         }
 
         #endregion

@@ -39,15 +39,15 @@ namespace Gameplay
         
         private HandType GetNonWinningHand(HandType playerHand)
         {
-            int choice = Random.Range(0, 2);
-            
+            int choice = Random.Range(0, 3);
+
             if (choice == 0)
             {
-                return playerHand;
+                return playerHand; // 비김 (33%)
             }
             else
             {
-                return GetLosingHand(playerHand);
+                return GetLosingHand(playerHand); // 플레이어 승 (66%)
             }
         }
         

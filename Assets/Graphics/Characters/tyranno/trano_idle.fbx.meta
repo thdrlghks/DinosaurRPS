@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 8b33989434c41d040aaf180df6aab673
+guid: 1ede1e56bcdc90d458f11421a23e0f8d
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
@@ -31,7 +31,7 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: trano_idle1
+      name: trano_idle_2
       takeName: Take 001
       internalID: 1827226128182048838
       firstFrame: 0

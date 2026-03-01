@@ -81,18 +81,18 @@ namespace Managers
         {
             if (_playerHealthBar != null)
             {
-                _playerHealthBar.fillAmount = Mathf.Lerp(
-                    _playerHealthBar.fillAmount, 
-                    _targetPlayerFill, 
+                _playerHealthBar.fillAmount = Mathf.MoveTowards(
+                    _playerHealthBar.fillAmount,
+                    _targetPlayerFill,
                     Time.deltaTime * _healthBarAnimationSpeed
                 );
             }
-            
+
             if (_opponentHealthBar != null)
             {
-                _opponentHealthBar.fillAmount = Mathf.Lerp(
-                    _opponentHealthBar.fillAmount, 
-                    _targetOpponentFill, 
+                _opponentHealthBar.fillAmount = Mathf.MoveTowards(
+                    _opponentHealthBar.fillAmount,
+                    _targetOpponentFill,
                     Time.deltaTime * _healthBarAnimationSpeed
                 );
             }
