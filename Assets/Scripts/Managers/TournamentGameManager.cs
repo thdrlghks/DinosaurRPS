@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using Core.Data;
 using Core.Enums;
@@ -6,6 +7,7 @@ using Cysharp.Threading.Tasks;
 using DefaultNamespace;
 using DefaultNamespace.Gameplay;
 using Gameplay;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using Utils;
@@ -53,12 +55,15 @@ namespace Managers
 
         [SerializeField] private float _resultDisplayTime = 2f;
 
+        [Header("Tutorial - Sealed Hands (첫 라운드만 적용)")]
+        [SerializeField] private List<HandType> _sealedHands = new();
+        [SerializeField] private TMP_Text _sealedWarningText;
+
         //Private Value
         private HandType? _selectedHand;
         private IGameJudge _gameJudge;
         private IOpponentHandGenerator _opponentAI;
         private bool _canInput;
-        private HandType _currentDecisionRps;
         private bool _roundInProgress;
         private bool _isCountingDown;
 
@@ -107,7 +112,6 @@ namespace Managers
         {
             await PlayCanvasIntroAnimation();
             InitializeMatch();
-            //await UniTask.Delay(2000);
             _canInput = true;
             _gameHealthCanvas.gameObject.SetActive(true);
             StartRound().Forget();
@@ -119,11 +123,8 @@ namespace Managers
 
         private async UniTask PlayCanvasIntroAnimation()
         {
-            //sfxManager.PlayFightSound();
             var playerRect = _playerCanvas.GetComponent<RectTransform>();
             var opponentRect = _opponentCanvas.GetComponent<RectTransform>();
-            float screenWidth = playerRect?.parent.GetComponent<RectTransform>().rect.width ?? Screen.width;
-
             var playerFinalPos = Vector2.zero;
             var opponentFinalPos = Vector2.zero;
 
@@ -234,19 +235,53 @@ namespace Managers
 
             else if (Input.GetKeyDown(KeyCode.W))
             {
+                if (IsHandSealed(HandType.Paper))
+                {
+                    ShowSealedWarning("W를 누를 수 없습니다!");
+                    return;
+                }
                 Debug.Log("W key pressed!");
                 SelectHand(HandType.Paper);
-                
             }
             else if (Input.GetKeyDown(KeyCode.E))
             {
+                if (IsHandSealed(HandType.Scissors))
+                {
+                    ShowSealedWarning("E를 누를 수 없습니다!");
+                    return;
+                }
                 Debug.Log("E key pressed!");
                 SelectHand(HandType.Scissors);
-                
             }
         }
 
         #endregion
+
+        private bool IsHandSealed(HandType hand)
+        {
+            return _matchData.TotalRounds == 0 && _sealedHands.Contains(hand);
+        }
+
+        private CancellationTokenSource _warningCts;
+
+        private void ShowSealedWarning(string message)
+        {
+            if (_sealedWarningText == null) return;
+
+            _warningCts?.Cancel();
+            _warningCts = new CancellationTokenSource();
+
+            _sealedWarningText.text = message;
+            _sealedWarningText.gameObject.SetActive(true);
+            HideSealedWarningAfterDelay(_warningCts.Token).Forget();
+        }
+
+        private async UniTaskVoid HideSealedWarningAfterDelay(CancellationToken token)
+        {
+            await UniTask.Delay(1000, cancellationToken: token);
+            if (_sealedWarningText != null)
+                _sealedWarningText.gameObject.SetActive(false);
+        }
 
         private void SelectHand(HandType handType)
         {
@@ -266,8 +301,6 @@ namespace Managers
             _camController.playIntro = true;
 
             await UniTask.Delay(500);
-            //카메라 딜레이 시간 생각해야함. 
-
             await StartCountdownAndBattle(this.GetCancellationTokenOnDestroy());
         }
 
@@ -291,7 +324,12 @@ namespace Managers
 
             if (!_selectedHand.HasValue)
             {
-                _selectedHand = (HandType)Random.Range(0, 3);
+                var available = new List<HandType>();
+                foreach (HandType hand in System.Enum.GetValues(typeof(HandType)))
+                {
+                    if (!IsHandSealed(hand)) available.Add(hand);
+                }
+                _selectedHand = available[Random.Range(0, available.Count)];
             }
 
             await ProcessRound(_selectedHand.Value, cancellationToken);
@@ -306,7 +344,7 @@ namespace Managers
 
         private async UniTask ExecuteCountdownAnimations(CancellationToken cancellationToken)
         {
-            if (_roundStartUIScissors)
+            if (_roundStartUIScissors && !IsHandSealed(HandType.Scissors))
             {
                 await UITweenUtil.ScaleUpAndFadeOutAsync(
                     _roundStartUIScissors.transform,
@@ -318,7 +356,7 @@ namespace Managers
                 );
             }
 
-            if (_roundStartUIRock)
+            if (_roundStartUIRock && !IsHandSealed(HandType.Rock))
             {
                 await UITweenUtil.ScaleUpAndFadeOutAsync(
                     _roundStartUIRock.transform,
@@ -330,7 +368,7 @@ namespace Managers
                 );
             }
 
-            if (_roundStartUIPaper)
+            if (_roundStartUIPaper && !IsHandSealed(HandType.Paper))
             {
                 await UITweenUtil.ScaleUpAndFadeOutAsync(
                     _roundStartUIPaper.transform,
@@ -414,7 +452,7 @@ namespace Managers
             }
 
             PlayBattleAnimations(result);
-            UpdateHealthBars(result);
+            UpdateHealthBars();
             if (result == GameResult.Win)
             {
                 await _camController.PlayWinCamera();
@@ -450,10 +488,6 @@ namespace Managers
 
         private void UpdateUI()
         {
-            // UI updates are handled in specific methods:
-            // - UpdateHealthBars() for health bar updates
-            // - UIManager.ShowBattleResult() for battle results
-            // This method is kept for potential future centralized UI updates
         }
 
         #region GenerateOpponentHand
@@ -581,15 +615,13 @@ namespace Managers
 
         private void ResetAnimations()
         {
-            // Win/Lose/Draw 애니메이션 종료 후 Transition에 의해 자동으로 Idle 복귀
-            //camController.returnMainCam = true;
         }
 
         #endregion
 
         #region UpdateHealthBars
 
-        private void UpdateHealthBars(GameResult result)
+        private void UpdateHealthBars()
         {
             if (_uiManager == null)
             {
