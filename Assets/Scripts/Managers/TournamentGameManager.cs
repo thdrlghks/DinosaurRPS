@@ -535,7 +535,8 @@ namespace Managers
                 switch (result)
                 {
                     case GameResult.Win:
-                        var playerWinTrigger = Random.Range(0, 2) == 0 ? "Win" : "Win2";
+                        var playerWinIndex = Random.Range(0, 3);
+                        var playerWinTrigger = playerWinIndex == 0 ? "Win" : playerWinIndex == 1 ? "Win2" : "Win3";
                         _playerAnimator.SetTrigger(playerWinTrigger);
                         break;
                     case GameResult.Lose:
@@ -555,7 +556,8 @@ namespace Managers
                         _opponentAnimator.SetTrigger("Lose");
                         break;
                     case GameResult.Lose:
-                        var opponentWinTrigger = Random.Range(0, 2) == 0 ? "Win" : "Win2";
+                        var opponentWinIndex = Random.Range(0, 3);
+                        var opponentWinTrigger = opponentWinIndex == 0 ? "Win" : opponentWinIndex == 1 ? "Win2" : "Win3";
                         _opponentAnimator.SetTrigger(opponentWinTrigger);
                         break;
                     case GameResult.Draw:
@@ -615,6 +617,10 @@ namespace Managers
 
         private void ResetAnimations()
         {
+            if (_playerAnimator != null)
+                _playerAnimator.SetTrigger("Idle");
+            if (_opponentAnimator != null)
+                _opponentAnimator.SetTrigger("Idle");
         }
 
         #endregion

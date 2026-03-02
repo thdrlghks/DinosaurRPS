@@ -1,9 +1,34 @@
 fileFormatVersion: 2
-guid: 769b54b729f352743b5f0a3b4fbddad8
+guid: ddc0aecc82da013459c1609b2ec0d194
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: glass
+    second: {fileID: 2100000, guid: c244a60188b8a4149b1b1625cb95f8db, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: hand1
+    second: {fileID: 2100000, guid: 49545a6059daa1a46b730417a50bbc7a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: standardSurface1
+    second: {fileID: 2100000, guid: f7e6c1b4dba3d6a4a9fa2610c28a467b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: standardSurface3
+    second: {fileID: 2100000, guid: b64e82e73dc8ed34687e67187b40dd21, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: standardSurface4
+    second: {fileID: 2100000, guid: d8839b00f53f3204f9fe52b6199b0e36, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
