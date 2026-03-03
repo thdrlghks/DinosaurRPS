@@ -51,7 +51,7 @@ namespace Managers
         [SerializeField] private Image _rpsScissorsImage;
 
         [Header("Camera & Settings")] [SerializeField]
-        private CAMController _camController;
+        private CameraManager _camController;
 
         [SerializeField] private float _resultDisplayTime = 2f;
 
@@ -298,7 +298,7 @@ namespace Managers
 
             _roundInProgress = true;
 
-            _camController.playIntro = true;
+            //abc_camController.playIntro = true;
 
             await UniTask.Delay(500);
             await StartCountdownAndBattle(this.GetCancellationTokenOnDestroy());
@@ -464,7 +464,8 @@ namespace Managers
             else // Draw
             {
                 // 비김은 짧은 대기만 (원하면 조정)
-                await UniTask.Delay((int)(_resultDisplayTime * 1000), cancellationToken: cancellationToken);
+                await UniTask.Delay((int)(_resultDisplayTime * 000), cancellationToken: cancellationToken);
+                await _camController.PlayIdleCamera();
             }
 
             // 카메라가 메인으로 돌아온 뒤 결과 표시 후(필요시) 다음 단계
@@ -481,6 +482,7 @@ namespace Managers
                 _roundInProgress = false;
                 _canInput = true;
                 StartRound().Forget();
+                await _camController.RestartSequence();
             }
         }
 
