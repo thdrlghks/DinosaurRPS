@@ -1539,6 +1539,7 @@ GameObject:
   - component: {fileID: 329857051}
   - component: {fileID: 329857050}
   - component: {fileID: 329857049}
+  - component: {fileID: 329857052}
   m_Layer: 0
   m_Name: PlayerCam
   m_TagString: Untagged
@@ -1554,8 +1555,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 329857047}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.009605218, y: 0.536441, z: -0.006106019, w: 0.8438611}
-  m_LocalPosition: {x: -4.01, y: 2.57, z: -0.19999978}
+  m_LocalRotation: {x: 0.03353516, y: 0.45077252, z: -0.016949901, w: 0.89184767}
+  m_LocalPosition: {x: -2.43, y: 2.87, z: -0.78999996}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1667,6 +1668,23 @@ MonoBehaviour:
       BarrelClipping: 0.25
       Anamorphism: 0
   BlendHint: 0
+--- !u!114 &329857052
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 329857047}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68bb026fafb42b14791938953eaace77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineBasicMultiChannelPerlin
+  NoiseProfile: {fileID: 11400000, guid: 69ce8388f6785dd4c8c39915efece2f4, type: 2}
+  PivotOffset: {x: 0, y: 0, z: 0}
+  AmplitudeGain: 1
+  FrequencyGain: 1
+  m_NoiseOffsets: {x: 0, y: 0, z: 0}
 --- !u!1 &341776524
 GameObject:
   m_ObjectHideFlags: 0
@@ -1676,10 +1694,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 341776528}
-  - component: {fileID: 341776527}
-  - component: {fileID: 341776526}
-  - component: {fileID: 341776525}
   - component: {fileID: 341776529}
+  - component: {fileID: 341776530}
   m_Layer: 0
   m_Name: CameraManager
   m_TagString: Untagged
@@ -1687,55 +1703,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &341776525
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 341776524}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7ab1a647d44984740a6553f097445b0c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  player: {fileID: 854303577}
-  followCam: {fileID: 0}
---- !u!114 &341776526
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 341776524}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 55249a37d1aae4b4181bd30175c26a02, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  cameras:
-  - {fileID: 801883924}
-  - {fileID: 0}
-  - {fileID: 0}
---- !u!114 &341776527
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 341776524}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 871ee3e473ba18d4fa7fe2f3f6edba38, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  playWin: 0
-  playLose: 0
-  playIntro: 0
-  returnMainCam: 0
-  isCameraReady: 1
-  introCam: {fileID: 48077420}
-  cameraTransitionTime: 3
 --- !u!4 &341776528
 Transform:
   m_ObjectHideFlags: 0
@@ -1772,6 +1739,22 @@ MonoBehaviour:
   waitBeforeStart: 3.1
   introDuration: 3
   zoomOutDuration: 1.5
+  cameraShake: {fileID: 341776530}
+--- !u!114 &341776530
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 341776524}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76c87d677593d14419141f952b13062a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraShake
+  basePower: 3
+  shakeDuration: 0.5
+  stepInterval: 0.45
 --- !u!1 &343515536
 GameObject:
   m_ObjectHideFlags: 0
@@ -2683,7 +2666,7 @@ Transform:
   m_GameObject: {fileID: 661062321}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 6.62, y: 5.11, z: 0.37}
+  m_LocalPosition: {x: 6.62, y: 5.11, z: 0}
   m_LocalScale: {x: 28.193655, y: 28.193655, z: 28.193655}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3174,59 +3157,59 @@ MonoBehaviour:
   - m_EditModeType: 1
     m_Knots:
     - Position:
-        x: -1.0199687
-        y: 0.44
-        z: -0.0012254715
+        x: -0.28996873
+        y: 0.29000002
+        z: -0.27122545
       TangentIn:
         x: -0
         y: -0
-        z: -0.115225874
+        z: -0.14549915
       TangentOut:
         x: 0
         y: 0
-        z: 0.115225874
+        z: 0.14549915
       Rotation:
         value:
-          x: 0.01646285
-          y: -0.02662839
-          z: 0.034253266
-          w: 0.99892277
+          x: -0.12196811
+          y: -0.024183225
+          z: 0.028745772
+          w: 0.9918229
     - Position:
-        x: -1.0799687
-        y: 0.39999998
-        z: 1.1487746
+        x: -0.36996865
+        y: 0.64
+        z: 1.1387746
       TangentIn:
         x: -0
         y: -0
-        z: -0.36674356
+        z: -0.40349036
       TangentOut:
         x: 0
         y: 0
-        z: 0.3656615
+        z: 0.34451562
       Rotation:
         value:
-          x: 0.02308527
-          y: 0.12196218
-          z: 0.001123978
-          w: 0.99226564
+          x: -0.18584892
+          y: 0.19163173
+          z: 0.05724426
+          w: 0.96200854
     - Position:
-        x: -0.48996878
-        y: 0.33999997
-        z: 2.1287746
+        x: 0.35403132
+        y: 1.112
+        z: 1.7537745
       TangentIn:
         x: -0
         y: -0
-        z: -0.11454693
+        z: -0.10607473
       TangentOut:
         x: 0
         y: 0
-        z: 0.11454693
+        z: 0.10607473
       Rotation:
         value:
-          x: 0.021716885
-          y: 0.2678733
-          z: -0.019698154
-          w: 0.9630079
+          x: -0.2012461
+          y: 0.41183746
+          z: 0.10922138
+          w: 0.8820208
     m_MetaData:
     - Mode: 0
       Tension: 0.5
@@ -3376,8 +3359,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 801883921}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.012475557, y: 0.7022598, z: 0.012309989, w: 0.711705}
-  m_LocalPosition: {x: -3.45, y: 0.94, z: -3.73}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: -3.24, y: 2.753, z: 0.66}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3613,11 +3596,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!4 &854303577 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: -6048770967118889175, guid: 23e639da9b3df9d43bff77026cc95395, type: 3}
-  m_PrefabInstance: {fileID: 854303574}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &854303578 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 23e639da9b3df9d43bff77026cc95395, type: 3}
@@ -3635,6 +3613,7 @@ GameObject:
   - component: {fileID: 861341916}
   - component: {fileID: 861341915}
   - component: {fileID: 861341914}
+  - component: {fileID: 861341917}
   m_Layer: 0
   m_Name: ZoomOutCam
   m_TagString: Untagged
@@ -3650,7 +3629,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 861341912}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.01809072, y: 0.70515454, z: 0.018002924, w: 0.70859426}
+  m_LocalRotation: {x: -0.017202351, y: 0.73625726, z: 0.018729534, w: 0.6762238}
   m_LocalPosition: {x: 2.51, y: 4.9, z: 0.35}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3763,6 +3742,78 @@ MonoBehaviour:
       BarrelClipping: 0.25
       Anamorphism: 0
   BlendHint: 0
+--- !u!114 &861341917
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 861341912}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 470bf1fec1f969246919ce983ec98d6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraMoveSettings
+  moveCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.33252412
+      value: 0.10587894
+      inSlope: 0.9808823
+      outSlope: 0.9808823
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.57974833
+      value: 0.6918969
+      inSlope: 1.9935821
+      outSlope: 1.9935821
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.62595224
+      value: 0.75283545
+      inSlope: 1.1473746
+      outSlope: 1.1473746
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.7459268
+      value: 0.86999834
+      inSlope: 0.77072597
+      outSlope: 0.77072597
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &897438936
 GameObject:
   m_ObjectHideFlags: 0
@@ -4476,37 +4527,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 299e7a1cb6456cf4fa6079cf5978df9b, type: 3}
---- !u!1 &1044335997
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1044335998}
-  m_Layer: 0
-  m_Name: Cameras
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1044335998
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1044335997}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1061068697
 GameObject:
   m_ObjectHideFlags: 0
@@ -4591,6 +4611,7 @@ GameObject:
   - component: {fileID: 1064252724}
   - component: {fileID: 1064252723}
   - component: {fileID: 1064252722}
+  - component: {fileID: 1064252725}
   m_Layer: 0
   m_Name: EnemyCam
   m_TagString: Untagged
@@ -4606,8 +4627,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1064252720}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.012475555, y: 0.7022597, z: 0.012309985, w: 0.71170515}
-  m_LocalPosition: {x: -3.45, y: 0.94, z: -3.73}
+  m_LocalRotation: {x: -0.024900654, y: 0.68282205, z: 0.02329814, w: 0.72978854}
+  m_LocalPosition: {x: -2.72, y: 0.79, z: -4}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4719,6 +4740,23 @@ MonoBehaviour:
       BarrelClipping: 0.25
       Anamorphism: 0
   BlendHint: 0
+--- !u!114 &1064252725
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1064252720}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68bb026fafb42b14791938953eaace77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineBasicMultiChannelPerlin
+  NoiseProfile: {fileID: 11400000, guid: 69ce8388f6785dd4c8c39915efece2f4, type: 2}
+  PivotOffset: {x: 0, y: 0, z: 0}
+  AmplitudeGain: 1
+  FrequencyGain: 1
+  m_NoiseOffsets: {x: 0, y: 0, z: 0}
 --- !u!1 &1064672924
 GameObject:
   m_ObjectHideFlags: 0
@@ -9819,58 +9857,58 @@ MonoBehaviour:
     m_Knots:
     - Position:
         x: -0.77346087
-        y: 1.9349995
-        z: 4.56457
+        y: 2.2979996
+        z: 4.86957
       TangentIn:
         x: -0
         y: -0
-        z: -0.23321164
+        z: -0.3445897
       TangentOut:
         x: 0
         y: 0
-        z: 0.23321164
+        z: 0.3445897
       Rotation:
         value:
-          x: -0.12517963
-          y: 0.9909322
-          z: -0.021508683
-          w: -0.043825388
+          x: -0.124967985
+          y: 0.989239
+          z: -0.0018319362
+          w: -0.07606423
     - Position:
-        x: -0.9634609
-        y: 1.8099995
-        z: 2.2435699
+        x: -1.2904611
+        y: 2.2199996
+        z: 1.4635699
       TangentIn:
         x: -0
         y: -0
-        z: -0.8017309
+        z: -1.0328605
       TangentOut:
         x: 0
         y: 0
-        z: 0.86788404
+        z: 1.0210469
       Rotation:
         value:
-          x: -0.032796834
-          y: 0.9993553
-          z: 0.010129945
-          w: 0.010514992
+          x: -0.032201126
+          y: 0.98904955
+          z: 0.0014337981
+          w: 0.14402096
     - Position:
-        x: -0.6304612
-        y: 2.0699995
-        z: -0.45643014
+        x: 0.94953895
+        y: 2.3699994
+        z: -1.0464301
       TangentIn:
         x: -0
         y: -0
-        z: -0.27328536
+        z: -0.33675215
       TangentOut:
         x: 0
         y: 0
-        z: 0.27328536
+        z: 0.33675215
       Rotation:
         value:
-          x: -0.011519285
-          y: 0.99692345
-          z: 0.047003686
-          w: 0.061656408
+          x: -0.016381912
+          y: 0.9340285
+          z: 0.017593922
+          w: 0.35638848
     m_MetaData:
     - Mode: 0
       Tension: 0.5
@@ -10332,13 +10370,12 @@ SceneRoots:
   - {fileID: 662687367}
   - {fileID: 1579664364}
   - {fileID: 48077419}
-  - {fileID: 801883925}
-  - {fileID: 341776528}
   - {fileID: 1156306941}
   - {fileID: 2043612405}
   - {fileID: 133668046}
-  - {fileID: 1296230807}
+  - {fileID: 341776528}
+  - {fileID: 801883925}
   - {fileID: 902086041}
   - {fileID: 1411373130}
-  - {fileID: 1044335998}
   - {fileID: 1009064578}
+  - {fileID: 1296230807}

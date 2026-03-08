@@ -19,6 +19,8 @@ public class CameraManager : MonoBehaviour
     public float introDuration = 3.0f;    // 각 인트로 이동 시간
     public float zoomOutDuration = 1.5f;  // 줌아웃 연출 시간
 
+    public CameraShake cameraShake;
+
     void Start()
     {
         isStartBattle = true;
@@ -35,9 +37,11 @@ public class CameraManager : MonoBehaviour
         }
 
         // 2. 플레이어 카메라 인트로
-        yield return StartCoroutine(MoveAlongSpline(introPlayerCam, introDuration));
+        cameraShake.StartDinoSteps(introPlayerCam);
+        yield return StartCoroutine(MoveAlongSpline (introPlayerCam, introDuration));
 
         // 3. 적 카메라 인트로
+        cameraShake.StartDinoSteps(introEnemyCam);
         yield return StartCoroutine(MoveAlongSpline(introEnemyCam, introDuration));
 
         // 4. 중앙 줌아웃 연출 + 시선 낮추기
@@ -46,12 +50,14 @@ public class CameraManager : MonoBehaviour
         // 연출을 위한 컴포넌트 가져오기
         var composer = introZoomOutCam.GetComponent<CinemachineRotationComposer>();
         var splineDolly = introZoomOutCam.GetComponent<CinemachineSplineDolly>();
+        var settings = introZoomOutCam.GetComponent<CameraMoveSettings>();
         float elapsed = 0f;
 
         while (elapsed < zoomOutDuration)
         {
             elapsed += Time.deltaTime;
-            float progress = elapsed / zoomOutDuration;
+            float t = elapsed / zoomOutDuration;
+            float progress = settings?.moveCurve.Evaluate(t) ?? t;
 
             // B. 시선 낮추기 (0에서 -1.5f로 점점 낮아짐)
             if (composer != null)
@@ -77,14 +83,25 @@ public class CameraManager : MonoBehaviour
     {
         SwitchCamera(cam);
         var splineDolly = cam.GetComponent<CinemachineSplineDolly>();
+        var settings = cam.GetComponent<CameraMoveSettings>(); // 커브
 
         if (splineDolly != null)
         {
+            splineDolly.CameraPosition = 0f;
             float elapsed = 0f;
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                splineDolly.CameraPosition = elapsed / duration;
+
+                float t = elapsed / duration;
+
+                float curveValue = t;
+
+                if (settings != null)
+                    curveValue = settings.moveCurve.Evaluate(t);
+                Debug.Log($"CurveValue: {curveValue}");
+                splineDolly.CameraPosition = curveValue;
+
                 yield return null;
             }
             splineDolly.CameraPosition = 1f;
