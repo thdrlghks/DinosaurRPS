@@ -1,5 +1,5 @@
 using UnityEngine;
-using Unity.Cinemachine; // ÃÖ½Å ¹öÀü ³×ÀÓ½ºÆäÀÌ½º
+using Unity.Cinemachine; // ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ó½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½
 using System.Collections;
 using System.Threading.Tasks;
 
@@ -14,10 +14,10 @@ public class CameraManager : MonoBehaviour
     public CinemachineCamera playerWinCam;
     public CinemachineCamera idleCam;
 
-    [Header("½Ã°£ ¼³Á¤")]
-    public float waitBeforeStart = 3.1f;   // ÃÖÃÊ ´ë±â ½Ã°£
-    public float introDuration = 3.0f;    // °¢ ÀÎÆ®·Î ÀÌµ¿ ½Ã°£
-    public float zoomOutDuration = 1.5f;  // ÁÜ¾Æ¿ô ¿¬Ãâ ½Ã°£
+    [Header("ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½ï¿½")]
+    public float waitBeforeStart = 3.1f;   // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½
+    public float introDuration = 3.0f;    // ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½Ã°ï¿½
+    public float zoomOutDuration = 1.5f;  // ï¿½Ü¾Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½
 
     public CameraShake cameraShake;
 
@@ -29,25 +29,25 @@ public class CameraManager : MonoBehaviour
 
     IEnumerator PlayFullIntroSequence()
     {
-        // 1. ÃÖÃÊ 3ÃÊ ´ë±â
+        // 1. ï¿½ï¿½ï¿½ï¿½ 3ï¿½ï¿½ ï¿½ï¿½ï¿½
         if (isStartBattle)
         {
             yield return new WaitForSeconds(waitBeforeStart);
             isStartBattle=false;
         }
 
-        // 2. ÇÃ·¹ÀÌ¾î Ä«¸Þ¶ó ÀÎÆ®·Î
+        // 2. ï¿½Ã·ï¿½ï¿½Ì¾ï¿½ Ä«ï¿½Þ¶ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½
         cameraShake.StartDinoSteps(introPlayerCam);
         yield return StartCoroutine(MoveAlongSpline (introPlayerCam, introDuration));
 
-        // 3. Àû Ä«¸Þ¶ó ÀÎÆ®·Î
+        // 3. ï¿½ï¿½ Ä«ï¿½Þ¶ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½
         cameraShake.StartDinoSteps(introEnemyCam);
         yield return StartCoroutine(MoveAlongSpline(introEnemyCam, introDuration));
 
-        // 4. Áß¾Ó ÁÜ¾Æ¿ô ¿¬Ãâ + ½Ã¼± ³·Ãß±â
+        // 4. ï¿½ß¾ï¿½ ï¿½Ü¾Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½ + ï¿½Ã¼ï¿½ ï¿½ï¿½ï¿½ß±ï¿½
         SwitchCamera(introZoomOutCam);
 
-        // ¿¬ÃâÀ» À§ÇÑ ÄÄÆ÷³ÍÆ® °¡Á®¿À±â
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         var composer = introZoomOutCam.GetComponent<CinemachineRotationComposer>();
         var splineDolly = introZoomOutCam.GetComponent<CinemachineSplineDolly>();
         var settings = introZoomOutCam.GetComponent<CameraMoveSettings>();
@@ -59,12 +59,12 @@ public class CameraManager : MonoBehaviour
             float t = elapsed / zoomOutDuration;
             float progress = settings?.moveCurve.Evaluate(t) ?? t;
 
-            // B. ½Ã¼± ³·Ãß±â (0¿¡¼­ -1.5f·Î Á¡Á¡ ³·¾ÆÁü)
+            // B. ï¿½Ã¼ï¿½ ï¿½ï¿½ï¿½ß±ï¿½ (0ï¿½ï¿½ï¿½ï¿½ -1.5fï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
             if (composer != null)
             {
                 composer.TargetOffset.y = Mathf.Lerp(0f, -7f, progress);
             }
-            // C. ½ºÇÃ¶óÀÎ ÀÌµ¿ Ãß°¡ (0¿¡¼­ 1·Î ÀÌµ¿)
+            // C. ï¿½ï¿½ï¿½Ã¶ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ß°ï¿½ (0ï¿½ï¿½ï¿½ï¿½ 1ï¿½ï¿½ ï¿½Ìµï¿½)
             if (splineDolly != null)
             {
                 splineDolly.CameraPosition = progress;
@@ -74,16 +74,16 @@ public class CameraManager : MonoBehaviour
 
         //yield return new WaitForSeconds(zoomOutDuration);
 
-        // 5. ÃÖÁ¾ Idle À¯Áö
+        // 5. ï¿½ï¿½ï¿½ï¿½ Idle ï¿½ï¿½ï¿½ï¿½
         //SwitchCamera(idleCam);
     }
 
-    // Spline ÀÌµ¿À» Ã³¸®ÇÏ´Â °ø¿ë ÄÚ·çÆ¾
+    // Spline ï¿½Ìµï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ú·ï¿½Æ¾
     IEnumerator MoveAlongSpline(CinemachineCamera cam, float duration)
     {
         SwitchCamera(cam);
         var splineDolly = cam.GetComponent<CinemachineSplineDolly>();
-        var settings = cam.GetComponent<CameraMoveSettings>(); // Ä¿ºê
+        var settings = cam.GetComponent<CameraMoveSettings>(); // Ä¿ï¿½ï¿½
 
         if (splineDolly != null)
         {
@@ -99,7 +99,7 @@ public class CameraManager : MonoBehaviour
 
                 if (settings != null)
                     curveValue = settings.moveCurve.Evaluate(t);
-                Debug.Log($"CurveValue: {curveValue}");
+                //Debug.Log($"CurveValue: {curveValue}");
                 splineDolly.CameraPosition = curveValue;
 
                 yield return null;
@@ -110,14 +110,14 @@ public class CameraManager : MonoBehaviour
 
     public void SwitchCamera(CinemachineCamera targetCam)
     {
-        // ¸ðµç Ä«¸Þ¶ó ¿ì¼±¼øÀ§ ÃÊ±âÈ­
+        // ï¿½ï¿½ï¿½ Ä«ï¿½Þ¶ï¿½ ï¿½ì¼±ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
         introPlayerCam.Priority = 10;
         introEnemyCam.Priority = 10;
         introZoomOutCam.Priority = 10;
         enemyWinCam.Priority = 10;
         playerWinCam.Priority = 10;
 
-        // ¼±ÅÃµÈ Ä«¸Þ¶ó¸¸ ³ôÀÓ
+        // ï¿½ï¿½ï¿½Ãµï¿½ Ä«ï¿½Þ¶ï¿½ ï¿½ï¿½ï¿½ï¿½
         targetCam.Priority = 20;
     }
     public async Task PlayWinCamera()
@@ -127,7 +127,7 @@ public class CameraManager : MonoBehaviour
         SwitchCamera(idleCam);
     }
 
-    // ÆÐ¹è ¿¬Ãâ
+    // ï¿½Ð¹ï¿½ ï¿½ï¿½ï¿½ï¿½
     public async Task PlayLoseCamera()
     {
         SwitchCamera(enemyWinCam);
@@ -139,12 +139,12 @@ public class CameraManager : MonoBehaviour
         SwitchCamera(idleCam);
         await Task.Delay(6500);
     }
-    // ÀÎÆ®·Î Àç½ÃÀÛ Èå¸§
+    // ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½å¸§
     public async Task RestartSequence()
     {
         await Task.Delay(100); 
 
-        // 3. ÀÎÆ®·Î ÄÚ·çÆ¾ ½ÇÇà
+        // 3. ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Ú·ï¿½Æ¾ ï¿½ï¿½ï¿½ï¿½
         StopAllCoroutines();
         StartCoroutine(PlayFullIntroSequence());
     }

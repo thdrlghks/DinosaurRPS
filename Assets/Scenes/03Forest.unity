@@ -227,7 +227,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 1042.3875, y: 0}
+  m_AnchoredPosition: {x: 13.715271, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &14308243
@@ -1481,7 +1481,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -1042.3875, y: 0}
+  m_AnchoredPosition: {x: -13.715271, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &297354665
@@ -1813,7 +1813,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 537432892, guid: ad2678be8721f5546bc56defd958208e, type: 3}
+  m_Sprite: {fileID: 274486224, guid: dad7e748d4cd7b945a29244ddf3ff33d, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2172,7 +2172,6 @@ GameObject:
   m_Component:
   - component: {fileID: 559430843}
   - component: {fileID: 559430846}
-  - component: {fileID: 559430845}
   - component: {fileID: 559430844}
   m_Layer: 0
   m_Name: ChickenHandCam
@@ -2240,14 +2239,6 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
---- !u!81 &559430845
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 559430842}
-  m_Enabled: 1
 --- !u!20 &559430846
 Camera:
   m_ObjectHideFlags: 0
@@ -5045,7 +5036,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1120355695
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8622,7 +8613,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1833443523}
   - component: {fileID: 1833443526}
-  - component: {fileID: 1833443525}
   - component: {fileID: 1833443524}
   m_Layer: 0
   m_Name: TyrannoHandCam
@@ -8690,14 +8680,6 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
---- !u!81 &1833443525
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1833443522}
-  m_Enabled: 1
 --- !u!20 &1833443526
 Camera:
   m_ObjectHideFlags: 0

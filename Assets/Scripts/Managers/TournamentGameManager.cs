@@ -344,8 +344,9 @@ namespace Managers
 
         private async UniTask ExecuteCountdownAnimations(CancellationToken cancellationToken)
         {
-            if (_roundStartUIScissors && !IsHandSealed(HandType.Scissors))
+            if (_roundStartUIScissors)
             {
+                _roundStartUIScissors.SetActive(true);
                 await UITweenUtil.ScaleUpAndFadeOutAsync(
                     _roundStartUIScissors.transform,
                     new Vector3(1.2f, 1.2f, 1f),
@@ -356,8 +357,9 @@ namespace Managers
                 );
             }
 
-            if (_roundStartUIRock && !IsHandSealed(HandType.Rock))
+            if (_roundStartUIRock)
             {
+                _roundStartUIRock.SetActive(true);
                 await UITweenUtil.ScaleUpAndFadeOutAsync(
                     _roundStartUIRock.transform,
                     new Vector3(1.2f, 1.2f, 1f),
@@ -368,8 +370,9 @@ namespace Managers
                 );
             }
 
-            if (_roundStartUIPaper && !IsHandSealed(HandType.Paper))
+            if (_roundStartUIPaper)
             {
+                _roundStartUIPaper.SetActive(true);
                 await UITweenUtil.ScaleUpAndFadeOutAsync(
                     _roundStartUIPaper.transform,
                     new Vector3(1.2f, 1.2f, 1f),
@@ -382,6 +385,7 @@ namespace Managers
 
             if (_balloon)
             {
+                await UniTask.Delay(1000, cancellationToken: cancellationToken);
                 await UITweenUtil.ScaleUpAndFadeOutAsync(
                     _balloon.transform,
                     new Vector3(10.8f, 8.5f, 7.5f),
