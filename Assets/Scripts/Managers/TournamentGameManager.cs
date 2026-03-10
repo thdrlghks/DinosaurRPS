@@ -50,10 +50,16 @@ namespace Managers
         [SerializeField] private Image _rpsPaperImage;
         [SerializeField] private Image _rpsScissorsImage;
 
+        [Header("Hand Cam RawImages")]
+        [SerializeField] private GameObject _cameraCanvas;
+
         [Header("Camera & Settings")] [SerializeField]
         private CameraManager _camController;
 
         [SerializeField] private float _resultDisplayTime = 2f;
+        [SerializeField, Range(0.2f, 0.4f)] private float _handRevealDelay = 0.3f;
+        [SerializeField, Range(0f, 0.8f)] private float _paperRevealExtraDelay = 0.25f;
+        [SerializeField, Range(0.05f, 0.5f)] private float _idleBlendDuration = 0.2f;
 
         [Header("Tutorial - Sealed Hands (첫 라운드만 적용)")]
         [SerializeField] private List<HandType> _sealedHands = new();
@@ -320,7 +326,6 @@ namespace Managers
             await countdownTask;
 
             _isCountingDown = false;
-            HideRPSSelectUI();
 
             if (!_selectedHand.HasValue)
             {
@@ -332,6 +337,7 @@ namespace Managers
                 _selectedHand = available[Random.Range(0, available.Count)];
             }
 
+            HighlightRPSSelection(_selectedHand.Value);
             await ProcessRound(_selectedHand.Value, cancellationToken);
 
             _selectedHand = null;
@@ -447,8 +453,18 @@ namespace Managers
             PlayHandAnimation(_playerAnimator, playerHand);
             PlayHandAnimation(_opponentAnimator, opponentHand);
 
-            // 손 보여주는 시간 대기
-            await UniTask.Delay(500, cancellationToken: cancellationToken);
+            // HandCam RawImage 표시
+            if (_cameraCanvas != null)
+                _cameraCanvas.SetActive(true);
+
+            // 손 모션을 자세히 보여주는 시간
+            float revealDelay = GetHandRevealDelay(playerHand, opponentHand);
+            await UniTask.Delay((int)(revealDelay * 1000f), cancellationToken: cancellationToken);
+
+            // HandCam RawImage 숨기기
+            if (_cameraCanvas != null)
+                _cameraCanvas.SetActive(false);
+            HideRPSSelectUI();
 
             if (_uiManager != null)
             {
@@ -520,15 +536,20 @@ namespace Managers
         {
             if (animator == null) return;
 
+            string label = animator == _opponentAnimator ? "Tyranno" : "Player";
+
             switch (hand)
             {
                 case HandType.Rock:
+                    Debug.LogError($"[{label}] SetTrigger: Rock");
                     animator.SetTrigger("Rock");
                     break;
                 case HandType.Paper:
+                    Debug.LogError($"[{label}] SetTrigger: Paper");
                     animator.SetTrigger("Paper");
                     break;
                 case HandType.Scissors:
+                    Debug.LogError($"[{label}] SetTrigger: Scissors");
                     animator.SetTrigger("Scissors");
                     break;
             }
@@ -559,14 +580,17 @@ namespace Managers
                 switch (result)
                 {
                     case GameResult.Win:
+                        Debug.LogError("[Tyranno] SetTrigger: Lose");
                         _opponentAnimator.SetTrigger("Lose");
                         break;
                     case GameResult.Lose:
                         var opponentWinIndex = Random.Range(0, 3);
                         var opponentWinTrigger = opponentWinIndex == 0 ? "Win" : opponentWinIndex == 1 ? "Win2" : "Win3";
+                        Debug.LogError($"[Tyranno] SetTrigger: {opponentWinTrigger}");
                         _opponentAnimator.SetTrigger(opponentWinTrigger);
                         break;
                     case GameResult.Draw:
+                        Debug.LogError("[Tyranno] SetTrigger: Draw");
                         _opponentAnimator.SetTrigger("Draw");
                         break;
                 }
@@ -610,6 +634,17 @@ namespace Managers
                 targetImage.color = _selectedColor;
         }
 
+        private float GetHandRevealDelay(HandType playerHand, HandType opponentHand)
+        {
+            float delay = _handRevealDelay;
+            if (playerHand == HandType.Paper || opponentHand == HandType.Paper)
+            {
+                delay += _paperRevealExtraDelay;
+            }
+
+            return delay;
+        }
+
         private void ResetRPSColors()
         {
             if (_rpsRockImage != null) _rpsRockImage.color = _defaultColor;
@@ -621,12 +656,32 @@ namespace Managers
 
         #region ResetAnimations
 
+        private void ResetAllTriggers(Animator animator)
+        {
+            animator.ResetTrigger("Rock");
+            animator.ResetTrigger("Paper");
+            animator.ResetTrigger("Scissors");
+            animator.ResetTrigger("Win");
+            animator.ResetTrigger("Win2");
+            animator.ResetTrigger("Win3");
+            animator.ResetTrigger("Lose");
+            animator.ResetTrigger("Draw");
+        }
+
         private void ResetAnimations()
         {
             if (_playerAnimator != null)
-                _playerAnimator.SetTrigger("Idle");
+            {
+                ResetAllTriggers(_playerAnimator);
+                _playerAnimator.CrossFadeInFixedTime("Idle", _idleBlendDuration, 0);
+            }
+
             if (_opponentAnimator != null)
-                _opponentAnimator.SetTrigger("Idle");
+            {
+                ResetAllTriggers(_opponentAnimator);
+                Debug.LogError("[Tyranno] ResetTriggers + Play Idle");
+                _opponentAnimator.CrossFadeInFixedTime("Idle", _idleBlendDuration, 0);
+            }
         }
 
         #endregion

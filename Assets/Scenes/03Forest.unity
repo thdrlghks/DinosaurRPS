@@ -205,7 +205,7 @@ GameObject:
   - component: {fileID: 14308244}
   - component: {fileID: 14308243}
   m_Layer: 5
-  m_Name: 'Allo '
+  m_Name: ChickenStart
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -227,7 +227,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 13.715271, y: 0}
+  m_AnchoredPosition: {x: 66.20679, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &14308243
@@ -250,7 +250,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: -1534621372, guid: 61a77b316d719a14f9a3c5f23c1d9630, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 839504213a303584eb9db9867a97ea85, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1481,7 +1481,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -13.715271, y: 0}
+  m_AnchoredPosition: {x: -66.20679, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &297354665
@@ -1736,6 +1736,7 @@ MonoBehaviour:
   enemyWinCam: {fileID: 64044128}
   playerWinCam: {fileID: 629424599}
   idleCam: {fileID: 1292770405}
+  resultCameraHoldDuration: 1.5
   waitBeforeStart: 3.1
   introDuration: 3
   zoomOutDuration: 1.5
@@ -7188,7 +7189,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1568480017
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8976,7 +8977,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 2695e08f2dbde464ab433c2a0f6c77de, type: 3}
+  m_Sprite: {fileID: 21300000, guid: e17c350a9163f24449c5c0a4839a31b0, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -9672,8 +9673,12 @@ MonoBehaviour:
   _rpsRockImage: {fileID: 1207338049}
   _rpsPaperImage: {fileID: 343515538}
   _rpsScissorsImage: {fileID: 1987225686}
+  _cameraCanvas: {fileID: 1009064574}
   _camController: {fileID: 341776529}
   _resultDisplayTime: 2
+  _handRevealDelay: 0.3
+  _paperRevealExtraDelay: 0.25
+  _idleBlendDuration: 0.2
   _sealedHands: 01000000
   _sealedWarningText: {fileID: 0}
 --- !u!4 &2043612405

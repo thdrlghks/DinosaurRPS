@@ -13,6 +13,7 @@ public class CameraManager : MonoBehaviour
     public CinemachineCamera enemyWinCam;
     public CinemachineCamera playerWinCam;
     public CinemachineCamera idleCam;
+    [Range(1.2f, 1.8f)] public float resultCameraHoldDuration = 1.5f;
 
     [Header("�ð� ����")]
     public float waitBeforeStart = 3.1f;   // ���� ��� �ð�
@@ -123,7 +124,7 @@ public class CameraManager : MonoBehaviour
     public async Task PlayWinCamera()
     {
         SwitchCamera(playerWinCam);
-        await Task.Delay(6500);
+        await Task.Delay((int)(resultCameraHoldDuration * 1000f));
         SwitchCamera(idleCam);
     }
 
@@ -131,13 +132,13 @@ public class CameraManager : MonoBehaviour
     public async Task PlayLoseCamera()
     {
         SwitchCamera(enemyWinCam);
-        await Task.Delay(6500);
+        await Task.Delay((int)(resultCameraHoldDuration * 1000f));
         SwitchCamera(idleCam);
     }
     public async Task PlayIdleCamera()
     {
         SwitchCamera(idleCam);
-        await Task.Delay(6500);
+        await Task.Delay((int)(resultCameraHoldDuration * 1000f));
     }
     // ��Ʈ�� ����� �帧
     public async Task RestartSequence()
