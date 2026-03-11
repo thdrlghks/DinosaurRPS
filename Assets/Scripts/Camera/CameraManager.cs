@@ -22,8 +22,16 @@ public class CameraManager : MonoBehaviour
 
     public CameraShake cameraShake;
 
+    [Header("결과 카메라 이동 위치")]
+    public Vector3 resultCamPosition = new Vector3(-5.76f, 2.57f, -0.18f);
+    public Vector3 resultCamRotation = new Vector3(15.708f, 90.049f, -0.013f);
+    [Range(0.3f, 2f)] public float resultCamMoveDuration = 0.8f;
+
+    private Camera _mainCamera;
+
     void Start()
     {
+        _mainCamera = Camera.main;
         isStartBattle = true;
         StartCoroutine(PlayFullIntroSequence());
     }
@@ -111,14 +119,13 @@ public class CameraManager : MonoBehaviour
 
     public void SwitchCamera(CinemachineCamera targetCam)
     {
-        // ��� ī�޶� �켱���� �ʱ�ȭ
         introPlayerCam.Priority = 10;
         introEnemyCam.Priority = 10;
         introZoomOutCam.Priority = 10;
         enemyWinCam.Priority = 10;
         playerWinCam.Priority = 10;
+        idleCam.Priority = 10;
 
-        // ���õ� ī�޶� ����
         targetCam.Priority = 20;
     }
     public async Task PlayWinCamera()
@@ -128,7 +135,6 @@ public class CameraManager : MonoBehaviour
         SwitchCamera(idleCam);
     }
 
-    // �й� ����
     public async Task PlayLoseCamera()
     {
         SwitchCamera(enemyWinCam);
@@ -139,6 +145,58 @@ public class CameraManager : MonoBehaviour
     {
         SwitchCamera(idleCam);
         await Task.Delay((int)(resultCameraHoldDuration * 1000f));
+    }
+
+    /// <summary>
+    /// Cinemachine을 끄고 MainCamera를 결과 좌표로 직접 이동시킴
+    /// </summary>
+    private bool _isMovingToResult = false;
+
+    public void MoveToResultPosition()
+    {
+        if (!_isMovingToResult)
+            StartCoroutine(MoveToResultCoroutine());
+    }
+
+    IEnumerator MoveToResultCoroutine()
+    {
+        _isMovingToResult = true;
+
+        if (_mainCamera == null) _mainCamera = Camera.main;
+
+        // Cinemachine Brain 비활성화 (MainCamera 직접 제어를 위해)
+        var brain = _mainCamera.GetComponent<CinemachineBrain>();
+        if (brain != null) brain.enabled = false;
+
+        Vector3 startPos = _mainCamera.transform.position;
+        Quaternion startRot = _mainCamera.transform.rotation;
+        Quaternion targetRot = Quaternion.Euler(resultCamRotation);
+
+        float elapsed = 0f;
+        while (elapsed < resultCamMoveDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / resultCamMoveDuration);
+
+            _mainCamera.transform.position = Vector3.Lerp(startPos, resultCamPosition, t);
+            _mainCamera.transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
+
+            yield return null;
+        }
+
+        _mainCamera.transform.position = resultCamPosition;
+        _mainCamera.transform.rotation = targetRot;
+        _isMovingToResult = false;
+    }
+
+    /// <summary>
+    /// Cinemachine Brain을 다시 활성화하여 가상 카메라 제어로 복귀
+    /// </summary>
+    public void RestoreCinemachine()
+    {
+        if (_mainCamera == null) _mainCamera = Camera.main;
+        var brain = _mainCamera.GetComponent<Unity.Cinemachine.CinemachineBrain>();
+        if (brain != null) brain.enabled = true;
     }
     // ��Ʈ�� ����� �帧
     public async Task RestartSequence()

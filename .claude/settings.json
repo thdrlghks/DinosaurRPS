@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Work/Unity/DinosaurRPS/Assets/Animators -type f -name *.controller)"
+    ]
+  }
+}

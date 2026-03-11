@@ -391,15 +391,9 @@ namespace Managers
 
             if (_balloon)
             {
+                // "보" 타이밍에 말풍선을 가위/바위처럼 가만히 두고 그냥 비활성화
                 await UniTask.Delay(1000, cancellationToken: cancellationToken);
-                await UITweenUtil.ScaleUpAndFadeOutAsync(
-                    _balloon.transform,
-                    new Vector3(10.8f, 8.5f, 7.5f),
-                    new Vector3(40.0f, 31.5f, 27.7f),
-                    2f,
-                    0.2f,
-                    cancellationToken
-                );
+                _balloon.SetActive(false);
             }
         }
 
@@ -453,7 +447,28 @@ namespace Managers
             PlayHandAnimation(_playerAnimator, playerHand);
             PlayHandAnimation(_opponentAnimator, opponentHand);
 
-            // HandCam RawImage 표시
+            // === 비김 처리: 연출 없이 바로 다시 라운드 시작 ===
+            if (result == GameResult.Draw)
+            {
+                Debug.Log("[ProcessRound] 비김! 바로 다시 라운드 시작");
+                HideRPSSelectUI();
+                if (_cameraCanvas != null)
+                    _cameraCanvas.SetActive(false);
+                // 짧은 대기 후 바로 리셋
+                await UniTask.Delay(500, cancellationToken: cancellationToken);
+                ResetAnimations();
+                _roundInProgress = false;
+                _canInput = true;
+                StartRound().Forget();
+                return;
+            }
+
+            // === MainCamera를 결과 좌표로 직접 이동 ===
+            _camController.MoveToResultPosition();
+            // 카메라 이동 완료 대기 (resultCamMoveDuration과 맞춤)
+            await UniTask.Delay(1000, cancellationToken: cancellationToken);
+
+            // HandCam RawImage 표시 (카메라 이동 후)
             if (_cameraCanvas != null)
                 _cameraCanvas.SetActive(true);
 
@@ -461,9 +476,6 @@ namespace Managers
             float revealDelay = GetHandRevealDelay(playerHand, opponentHand);
             await UniTask.Delay((int)(revealDelay * 1000f), cancellationToken: cancellationToken);
 
-            // HandCam RawImage 숨기기
-            if (_cameraCanvas != null)
-                _cameraCanvas.SetActive(false);
             HideRPSSelectUI();
 
             if (_uiManager != null)
@@ -471,25 +483,38 @@ namespace Managers
                 _uiManager.ShowBattleResult(playerHand, opponentHand, result);
             }
 
+            // === 배틀 애니메이션 재생 (Win/Lose 모션) ===
             PlayBattleAnimations(result);
+
+            // === 2선승제: 반피 헤롱헤롱 체크 ===
+            CheckHalfHealthStagger(result);
+
+            // === 모션이 끝날 때까지 대기 ===
+            await UniTask.Delay((int)(_resultDisplayTime * 1000), cancellationToken: cancellationToken);
+
+            // === 카메라 복귀: Cinemachine 다시 활성화 ===
+            _camController.RestoreCinemachine();
+            _camController.SwitchCamera(_camController.idleCam);
+            await UniTask.Delay(500, cancellationToken: cancellationToken);
+
+            // === 모션 끝난 후에 HP 감소 ===
             UpdateHealthBars();
-            if (result == GameResult.Win)
+
+            // HP 감소 애니메이션 보여주는 시간
+            await UniTask.Delay(800, cancellationToken: cancellationToken);
+
+            // === 사망 체크 (Enemy HP <= 0) ===
+            bool isDeathRound = CheckDeathAnimation(result);
+            if (isDeathRound)
             {
-                await _camController.PlayWinCamera();
-            }
-            else if (result == GameResult.Lose)
-            {
-                await _camController.PlayLoseCamera();
-            }
-            else // Draw
-            {
-                // 비김은 짧은 대기만 (원하면 조정)
-                await UniTask.Delay((int)(_resultDisplayTime * 000), cancellationToken: cancellationToken);
-                await _camController.PlayIdleCamera();
+                // TODO: 실제 Death/Fall 애니메이션 길이에 맞춰 조정
+                await UniTask.Delay(1000, cancellationToken: cancellationToken);
             }
 
-            // 카메라가 메인으로 돌아온 뒤 결과 표시 후(필요시) 다음 단계
-            await UniTask.Delay((int)(_resultDisplayTime * 1000), cancellationToken: cancellationToken);
+            if (_cameraCanvas != null)
+                _cameraCanvas.SetActive(false);
+
+            await UniTask.Delay((int)(_resultDisplayTime * 500), cancellationToken: cancellationToken);
 
             ResetAnimations();
             UpdateUI();
@@ -504,6 +529,71 @@ namespace Managers
                 StartRound().Forget();
                 await _camController.RestartSequence();
             }
+        }
+
+        /// <summary>
+        /// 2선승제에서 반피일 때 헤롱헤롱 모션 체크
+        /// </summary>
+        private void CheckHalfHealthStagger(GameResult result)
+        {
+            // 2선승제 단계(4강/결승)만 적용
+            if (_currentStage != TournamentStage.SemiFinals && _currentStage != TournamentStage.Finals) return;
+
+            int maxPlayerHP = GetMaxHealthForStage(_currentStage, true);
+            int maxOpponentHP = GetMaxHealthForStage(_currentStage, false);
+
+            if (result == GameResult.Win)
+            {
+                // 적이 맞았을 때 - 적 남은 HP 체크
+                int opponentHP = maxOpponentHP - _matchData.PlayerWins;
+                if (opponentHP == 1)
+                {
+                    Debug.Log("[2선승] 적 반피! 헤롱헤롱 비틀거리는 모션 실행 (TODO: 애니메이션 추가)");
+                    // TODO: _opponentAnimator.SetTrigger("Stagger");
+                }
+            }
+            else if (result == GameResult.Lose)
+            {
+                // 플레이어가 맞았을 때 - 플레이어 남은 HP 체크
+                int playerHP = maxPlayerHP - _matchData.OpponentWins;
+                if (playerHP == 1)
+                {
+                    Debug.Log("[2선승] 플레이어 반피! 헤롱헤롱 비틀거리는 모션 실행 (TODO: 애니메이션 추가)");
+                    // TODO: _playerAnimator.SetTrigger("Stagger");
+                }
+            }
+        }
+
+        /// <summary>
+        /// HP가 0 이하일 때 쓰러지는 모션 체크
+        /// </summary>
+        private bool CheckDeathAnimation(GameResult result)
+        {
+            int maxPlayerHP = GetMaxHealthForStage(_currentStage, true);
+            int maxOpponentHP = GetMaxHealthForStage(_currentStage, false);
+
+            if (result == GameResult.Win)
+            {
+                int opponentHP = maxOpponentHP - _matchData.PlayerWins;
+                if (opponentHP <= 0)
+                {
+                    Debug.Log("[사망] 적 HP 0! 쓰러지는 모션 실행 (TODO: 애니메이션 추가)");
+                    // TODO: _opponentAnimator.SetTrigger("Death");
+                    return true;
+                }
+            }
+            else if (result == GameResult.Lose)
+            {
+                int playerHP = maxPlayerHP - _matchData.OpponentWins;
+                if (playerHP <= 0)
+                {
+                    Debug.Log("[사망] 플레이어 HP 0! 쓰러지는 모션 실행 (TODO: 애니메이션 추가)");
+                    // TODO: _playerAnimator.SetTrigger("Death");
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         #endregion
