@@ -1,5 +1,6 @@
 using UnityEngine;
-using Unity.Cinemachine; // �ֽ� ���� ���ӽ����̽�
+using UnityEngine.UI;
+using Unity.Cinemachine;
 using System.Collections;
 using System.Threading.Tasks;
 
@@ -21,6 +22,11 @@ public class CameraManager : MonoBehaviour
     public float zoomOutDuration = 1.5f;  // �ܾƿ� ���� �ð�
 
     public CameraShake cameraShake;
+
+    [Header("카메라 전환 페이드")]
+    [Tooltip("화면 페이드용 검은 Image (CanvasGroup 필요 없음, 풀스크린 Image)")]
+    public Image fadeOverlay;
+    [Range(0.05f, 0.5f)] public float fadeDuration = 0.15f;
 
     [Header("결과 카메라 이동 위치")]
     public Vector3 resultCamPosition = new Vector3(-5.76f, 2.57f, -0.18f);
@@ -152,41 +158,94 @@ public class CameraManager : MonoBehaviour
     /// </summary>
     private bool _isMovingToResult = false;
 
-    public void MoveToResultPosition()
+    public async Task MoveToResultPosition()
     {
-        if (!_isMovingToResult)
-            StartCoroutine(MoveToResultCoroutine());
-    }
-
-    IEnumerator MoveToResultCoroutine()
-    {
+        if (_isMovingToResult) return;
         _isMovingToResult = true;
 
-        if (_mainCamera == null) _mainCamera = Camera.main;
-
-        // Cinemachine Brain 비활성화 (MainCamera 직접 제어를 위해)
-        var brain = _mainCamera.GetComponent<CinemachineBrain>();
-        if (brain != null) brain.enabled = false;
-
-        Vector3 startPos = _mainCamera.transform.position;
-        Quaternion startRot = _mainCamera.transform.rotation;
-        Quaternion targetRot = Quaternion.Euler(resultCamRotation);
-
-        float elapsed = 0f;
-        while (elapsed < resultCamMoveDuration)
+        try
         {
-            elapsed += Time.deltaTime;
-            float t = Mathf.SmoothStep(0f, 1f, elapsed / resultCamMoveDuration);
+            if (_mainCamera == null) _mainCamera = Camera.main;
 
-            _mainCamera.transform.position = Vector3.Lerp(startPos, resultCamPosition, t);
-            _mainCamera.transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
+            // Cinemachine Brain ???? (MainCamera ?? ??? ??)
+            var brain = _mainCamera.GetComponent<CinemachineBrain>();
+            if (brain != null) brain.enabled = false;
+
+            Vector3 startPos = _mainCamera.transform.position;
+            Quaternion startRot = _mainCamera.transform.rotation;
+            Quaternion targetRot = Quaternion.Euler(resultCamRotation);
+
+            float elapsed = 0f;
+            while (elapsed < resultCamMoveDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.SmoothStep(0f, 1f, elapsed / resultCamMoveDuration);
+
+                _mainCamera.transform.position = Vector3.Lerp(startPos, resultCamPosition, t);
+                _mainCamera.transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
+
+                await Task.Yield();
+            }
+
+            _mainCamera.transform.position = resultCamPosition;
+            _mainCamera.transform.rotation = targetRot;
+        }
+        finally
+        {
+            _isMovingToResult = false;
+        }
+    }
+
+    /// <summary>
+    /// 페이드 아웃 → 카메라 전환 → 페이드 인 (부드러운 전환)
+    /// </summary>
+    public void SwitchCameraWithFade(CinemachineCamera targetCam)
+    {
+        StartCoroutine(FadeSwitchCoroutine(targetCam));
+    }
+
+    IEnumerator FadeSwitchCoroutine(CinemachineCamera targetCam)
+    {
+        // Fade out (검은색으로)
+        yield return StartCoroutine(FadeCoroutine(0f, 1f, fadeDuration));
+
+        // 카메라 전환
+        SwitchCamera(targetCam);
+
+        // 1프레임 대기 (Cinemachine 전환 적용)
+        yield return null;
+
+        // Fade in (투명으로)
+        yield return StartCoroutine(FadeCoroutine(1f, 0f, fadeDuration));
+    }
+
+    IEnumerator FadeCoroutine(float from, float to, float duration)
+    {
+        if (fadeOverlay == null) yield break;
+
+        fadeOverlay.gameObject.SetActive(true);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / duration;
+            float alpha = Mathf.Lerp(from, to, t);
+
+            Color c = fadeOverlay.color;
+            c.a = alpha;
+            fadeOverlay.color = c;
 
             yield return null;
         }
 
-        _mainCamera.transform.position = resultCamPosition;
-        _mainCamera.transform.rotation = targetRot;
-        _isMovingToResult = false;
+        Color final_c = fadeOverlay.color;
+        final_c.a = to;
+        fadeOverlay.color = final_c;
+
+        // 완전 투명이면 비활성화
+        if (to <= 0f)
+            fadeOverlay.gameObject.SetActive(false);
     }
 
     /// <summary>
@@ -208,3 +267,4 @@ public class CameraManager : MonoBehaviour
         StartCoroutine(PlayFullIntroSequence());
     }
 }
+

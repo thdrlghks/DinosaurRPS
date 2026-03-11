@@ -34,6 +34,8 @@ namespace Managers
         private Animator _playerAnimator;
 
         [SerializeField] private Animator _opponentAnimator;
+
+        // HitFlash, ImpactVFX는 캐릭터 오브젝트에 붙여두면 런타임에 자동 탐색
         [SerializeField] private GameObject _playerCanvas;
         [SerializeField] private GameObject _opponentCanvas;
 
@@ -57,9 +59,14 @@ namespace Managers
         private CameraManager _camController;
 
         [SerializeField] private float _resultDisplayTime = 2f;
-        [SerializeField, Range(0.2f, 0.4f)] private float _handRevealDelay = 0.3f;
-        [SerializeField, Range(0f, 0.8f)] private float _paperRevealExtraDelay = 0.25f;
+        [SerializeField, Range(1f, 5f)] private float _rawImageDisplayTime = 3f;
         [SerializeField, Range(0.05f, 0.5f)] private float _idleBlendDuration = 0.2f;
+        [SerializeField, Min(0f)] private float _hpApplyDelay = 2f;
+        [SerializeField, Min(0f)] private float _postHpDelay = 0.8f;
+
+        [Header("Hit Effects")]
+        [SerializeField, Range(0.03f, 0.15f)] private float _hitStopDuration = 0.07f;
+        [SerializeField, Range(0.5f, 2f)] private float _shakeMultiplier = 1f;
 
         [Header("Tutorial - Sealed Hands (첫 라운드만 적용)")]
         [SerializeField] private List<HandType> _sealedHands = new();
@@ -443,38 +450,60 @@ namespace Managers
             _matchData.RecordResult(result);
             BattleHistoryManager.Instance?.RecordRound(playerHand, opponentHand, result);
 
-            // 플레이어와 상대방의 손 애니메이션 재생
-            PlayHandAnimation(_playerAnimator, playerHand);
-            PlayHandAnimation(_opponentAnimator, opponentHand);
-
-            // === 비김 처리: 연출 없이 바로 다시 라운드 시작 ===
+            // === 비김 처리: 카메라 이동 + 손 모션만 보여주고 바로 다시 라운드 ===
             if (result == GameResult.Draw)
             {
-                Debug.Log("[ProcessRound] 비김! 바로 다시 라운드 시작");
-                HideRPSSelectUI();
+                Debug.Log("[ProcessRound] 비김! 손 모션 보여주고 바로 다시 라운드 시작");
+
+                // 카메라 캐릭터쪽으로 이동
+                await _camController.MoveToResultPosition();
+
+                // 카메라 도착 후 손 애니메이션 트리거
+                PlayHandAnimation(_playerAnimator, playerHand);
+                PlayHandAnimation(_opponentAnimator, opponentHand);
+
+                // HandCam RawImage 표시
+                if (_cameraCanvas != null)
+                    _cameraCanvas.SetActive(true);
+
+                // RawImage 표시 시간 (3초)
+                await UniTask.Delay((int)(_rawImageDisplayTime * 1000f), cancellationToken: cancellationToken);
+
+                // HandCam 끄기
                 if (_cameraCanvas != null)
                     _cameraCanvas.SetActive(false);
-                // 짧은 대기 후 바로 리셋
-                await UniTask.Delay(500, cancellationToken: cancellationToken);
+                HideRPSSelectUI();
+
+                // 카메라 복귀
+                _camController.RestoreCinemachine();
+                _camController.SwitchCamera(_camController.idleCam);
+                await UniTask.Delay(300, cancellationToken: cancellationToken);
+
                 ResetAnimations();
                 _roundInProgress = false;
                 _canInput = true;
                 StartRound().Forget();
+                await _camController.RestartSequence();
                 return;
             }
 
             // === MainCamera를 결과 좌표로 직접 이동 ===
-            _camController.MoveToResultPosition();
-            // 카메라 이동 완료 대기 (resultCamMoveDuration과 맞춤)
-            await UniTask.Delay(1000, cancellationToken: cancellationToken);
+            await _camController.MoveToResultPosition();
+
+            // 카메라 도착 후 손 애니메이션 트리거
+            PlayHandAnimation(_playerAnimator, playerHand);
+            PlayHandAnimation(_opponentAnimator, opponentHand);
 
             // HandCam RawImage 표시 (카메라 이동 후)
             if (_cameraCanvas != null)
                 _cameraCanvas.SetActive(true);
 
-            // 손 모션을 자세히 보여주는 시간
-            float revealDelay = GetHandRevealDelay(playerHand, opponentHand);
-            await UniTask.Delay((int)(revealDelay * 1000f), cancellationToken: cancellationToken);
+            // RawImage 표시 시간 (3초)
+            await UniTask.Delay((int)(_rawImageDisplayTime * 1000f), cancellationToken: cancellationToken);
+
+            // HandCam RawImage 숨기기 (승리모션 전에 꺼야 함)
+            if (_cameraCanvas != null)
+                _cameraCanvas.SetActive(false);
 
             HideRPSSelectUI();
 
@@ -486,22 +515,46 @@ namespace Managers
             // === 배틀 애니메이션 재생 (Win/Lose 모션) ===
             PlayBattleAnimations(result);
 
+            // === 히트스톱 + 카메라 쉐이크 + 히트플래시 + VFX (타격감) ===
+            HitStop.Instance.Play(_hitStopDuration);
+            if (_camController != null && _camController.cameraShake != null)
+            {
+                _camController.cameraShake.PlayImpactShake(null, _shakeMultiplier);
+            }
+            PlayHitEffects(result);
+
+            // === QWE 아이콘 승패 반응 ===
+            HighlightRPSResult(result);
+
             // === 2선승제: 반피 헤롱헤롱 체크 ===
             CheckHalfHealthStagger(result);
 
-            // === 모션이 끝날 때까지 대기 ===
-            await UniTask.Delay((int)(_resultDisplayTime * 1000), cancellationToken: cancellationToken);
+            float hpDelay = Mathf.Max(0f, Mathf.Min(_hpApplyDelay, _resultDisplayTime));
+            if (hpDelay > 0f)
+            {
+                await UniTask.Delay((int)(hpDelay * 1000f), cancellationToken: cancellationToken);
+            }
+
+            // === 설정한 타이밍에 HP 감소 ===
+            UpdateHealthBars();
+
+            // 결과 모션 남은 시간 대기
+            float remainResultTime = Mathf.Max(0f, _resultDisplayTime - hpDelay);
+            if (remainResultTime > 0f)
+            {
+                await UniTask.Delay((int)(remainResultTime * 1000f), cancellationToken: cancellationToken);
+            }
 
             // === 카메라 복귀: Cinemachine 다시 활성화 ===
             _camController.RestoreCinemachine();
             _camController.SwitchCamera(_camController.idleCam);
             await UniTask.Delay(500, cancellationToken: cancellationToken);
 
-            // === 모션 끝난 후에 HP 감소 ===
-            UpdateHealthBars();
-
-            // HP 감소 애니메이션 보여주는 시간
-            await UniTask.Delay(800, cancellationToken: cancellationToken);
+            // HP 감소 애니메이션 추가 대기
+            if (_postHpDelay > 0f)
+            {
+                await UniTask.Delay((int)(_postHpDelay * 1000f), cancellationToken: cancellationToken);
+            }
 
             // === 사망 체크 (Enemy HP <= 0) ===
             bool isDeathRound = CheckDeathAnimation(result);
@@ -510,9 +563,6 @@ namespace Managers
                 // TODO: 실제 Death/Fall 애니메이션 길이에 맞춰 조정
                 await UniTask.Delay(1000, cancellationToken: cancellationToken);
             }
-
-            if (_cameraCanvas != null)
-                _cameraCanvas.SetActive(false);
 
             await UniTask.Delay((int)(_resultDisplayTime * 500), cancellationToken: cancellationToken);
 
@@ -528,6 +578,29 @@ namespace Managers
                 _canInput = true;
                 StartRound().Forget();
                 await _camController.RestartSequence();
+            }
+        }
+
+        /// <summary>
+        /// 피격 캐릭터에 HitFlash + ImpactVFX 실행 (SendMessage로 타입 의존성 없이 호출)
+        /// </summary>
+        private void PlayHitEffects(GameResult result)
+        {
+            // 진 쪽 = 맞은 캐릭터
+            Animator loserAnim = result == GameResult.Win ? _opponentAnimator : _playerAnimator;
+            Animator winnerAnim = result == GameResult.Win ? _playerAnimator : _opponentAnimator;
+            GameObject loser = loserAnim != null ? loserAnim.gameObject : null;
+            GameObject winner = winnerAnim != null ? winnerAnim.gameObject : null;
+
+            if (loser != null)
+            {
+                loser.SendMessage("Play", SendMessageOptions.DontRequireReceiver);       // HitFlash.Play()
+                loser.SendMessage("PlayHitVFX", SendMessageOptions.DontRequireReceiver);  // ImpactVFX.PlayHitVFX()
+            }
+
+            if (winner != null)
+            {
+                winner.SendMessage("PlayWinVFX", SendMessageOptions.DontRequireReceiver); // ImpactVFX.PlayWinVFX()
             }
         }
 
@@ -724,22 +797,52 @@ namespace Managers
                 targetImage.color = _selectedColor;
         }
 
-        private float GetHandRevealDelay(HandType playerHand, HandType opponentHand)
-        {
-            float delay = _handRevealDelay;
-            if (playerHand == HandType.Paper || opponentHand == HandType.Paper)
-            {
-                delay += _paperRevealExtraDelay;
-            }
-
-            return delay;
-        }
 
         private void ResetRPSColors()
         {
             if (_rpsRockImage != null) _rpsRockImage.color = _defaultColor;
             if (_rpsPaperImage != null) _rpsPaperImage.color = _defaultColor;
             if (_rpsScissorsImage != null) _rpsScissorsImage.color = _defaultColor;
+
+            // 스케일 복원
+            if (_rpsRockImage != null) _rpsRockImage.rectTransform.localScale = Vector3.one;
+            if (_rpsPaperImage != null) _rpsPaperImage.rectTransform.localScale = Vector3.one;
+            if (_rpsScissorsImage != null) _rpsScissorsImage.rectTransform.localScale = Vector3.one;
+        }
+
+        /// <summary>
+        /// 승패 결과에 따라 QWE 아이콘에 시각 피드백
+        /// 이긴 손: 확대 + 초록, 진 손: 회색 축소
+        /// </summary>
+        private void HighlightRPSResult(GameResult result)
+        {
+            if (!_selectedHand.HasValue) return;
+
+            Color winGlow = new Color(0.3f, 1f, 0.3f, 1f);
+            Color loseGray = new Color(0.4f, 0.4f, 0.4f, 1f);
+            Vector3 winScale = new Vector3(1.3f, 1.3f, 1f);
+            Vector3 loseScale = new Vector3(0.8f, 0.8f, 1f);
+
+            var selectedImage = _selectedHand.Value switch
+            {
+                HandType.Rock => _rpsRockImage,
+                HandType.Paper => _rpsPaperImage,
+                HandType.Scissors => _rpsScissorsImage,
+                _ => null
+            };
+
+            if (selectedImage == null) return;
+
+            if (result == GameResult.Win)
+            {
+                selectedImage.color = winGlow;
+                selectedImage.rectTransform.localScale = winScale;
+            }
+            else if (result == GameResult.Lose)
+            {
+                selectedImage.color = loseGray;
+                selectedImage.rectTransform.localScale = loseScale;
+            }
         }
 
         #endregion
