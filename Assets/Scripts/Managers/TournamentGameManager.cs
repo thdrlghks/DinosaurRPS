@@ -63,6 +63,8 @@ namespace Managers
         [SerializeField, Range(0.05f, 0.5f)] private float _idleBlendDuration = 0.2f;
         [SerializeField, Min(0f)] private float _hpApplyDelay = 2f;
         [SerializeField, Min(0f)] private float _postHpDelay = 0.8f;
+        [SerializeField, Min(0f)] private float _resultTextDelay = 2f;
+        [SerializeField, Min(0.5f)] private float _countdownStepDuration = 2.5f;
 
         [Header("Hit Effects")]
         [SerializeField, Range(0.03f, 0.15f)] private float _hitStopDuration = 0.07f;
@@ -364,7 +366,7 @@ namespace Managers
                     _roundStartUIScissors.transform,
                     new Vector3(1.2f, 1.2f, 1f),
                     new Vector3(1.8f, 1.8f, 1.5f),
-                    2f,
+                    _countdownStepDuration,
                     0.5f,
                     cancellationToken
                 );
@@ -377,7 +379,7 @@ namespace Managers
                     _roundStartUIRock.transform,
                     new Vector3(1.2f, 1.2f, 1f),
                     new Vector3(1.8f, 1.8f, 1.5f),
-                    2f,
+                    _countdownStepDuration,
                     0.5f,
                     cancellationToken
                 );
@@ -390,7 +392,7 @@ namespace Managers
                     _roundStartUIPaper.transform,
                     new Vector3(1.2f, 1.2f, 1f),
                     new Vector3(1.8f, 1.8f, 1.5f),
-                    2f,
+                    _countdownStepDuration,
                     0.5f,
                     cancellationToken
                 );
@@ -507,13 +509,22 @@ namespace Managers
 
             HideRPSSelectUI();
 
+            // === 승패 문구를 먼저 화면 가운데에 표시 ===
+            if (_uiManager != null)
+            {
+                _uiManager.ShowResultUI(result);
+            }
+
+            // === 문구 표시 후 대기 → 그 다음 댄스 ===
+            await UniTask.Delay((int)(_resultTextDelay * 1000f), cancellationToken: cancellationToken);
+
+            // === 배틀 애니메이션 재생 (Win/Lose 모션) ===
+            PlayBattleAnimations(result);
+
             if (_uiManager != null)
             {
                 _uiManager.ShowBattleResult(playerHand, opponentHand, result);
             }
-
-            // === 배틀 애니메이션 재생 (Win/Lose 모션) ===
-            PlayBattleAnimations(result);
 
             // === 히트스톱 + 카메라 쉐이크 + 히트플래시 + VFX (타격감) ===
             HitStop.Instance.Play(_hitStopDuration);

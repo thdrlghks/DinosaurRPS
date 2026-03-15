@@ -449,9 +449,9 @@ namespace Managers
             {
                 _resultText.text = result switch
                 {
-                    GameResult.Win => "WIN!",
-                    GameResult.Lose => "LOSE!",
-                    GameResult.Draw => "DRAW!",
+                    GameResult.Win => "승리!",
+                    GameResult.Lose => "패배...",
+                    GameResult.Draw => "무승부!",
                     _ => ""
                 };
 
