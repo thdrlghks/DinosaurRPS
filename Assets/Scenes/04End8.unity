@@ -546,7 +546,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _videoPlayer: {fileID: 1185553695}
-  _nextSceneName: SemiFinals
+  _nextSceneName: 05Start4
   _allowSkip: 1
 --- !u!328 &1185553695
 VideoPlayer:

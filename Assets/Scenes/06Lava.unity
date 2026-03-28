@@ -3155,7 +3155,7 @@ MonoBehaviour:
   _startBackGround: {fileID: 1804318870}
   _gameHealthCanvas: {fileID: 56565356}
   _playerAnimator: {fileID: 2042569543}
-  _opponentAnimator: {fileID: 2042569543}
+  _opponentAnimator: {fileID: 904864273}
   _playerCanvas: {fileID: 531487998}
   _opponentCanvas: {fileID: 949007827}
   _roundStartUIRock: {fileID: 607590059}

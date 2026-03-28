@@ -9742,13 +9742,13 @@ MonoBehaviour:
     _draws: 0
     _hasPlayerWonOnce: 0
     _resultHistory: 
-  _currentStage: 2
+  _currentStage: 1
   _sfxManager: {fileID: 0}
   _uiManager: {fileID: 133668045}
   _startBackGround: {fileID: 932984419}
   _gameHealthCanvas: {fileID: 1662154279}
   _playerAnimator: {fileID: 854303576}
-  _opponentAnimator: {fileID: 854303576}
+  _opponentAnimator: {fileID: 2116277961}
   _playerCanvas: {fileID: 297354663}
   _opponentCanvas: {fileID: 14308241}
   _roundStartUIRock: {fileID: 922192997}
