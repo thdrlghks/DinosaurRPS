@@ -3626,19 +3626,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31eba507f77fd15418609eea58f4faa1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GroundLock
-  _lockY: 0.4
-  _useAnimatorXZ: 0
-  _useAnimatorRotation: 0
-  _forceApplyRootMotion: 1
-  _preventVisualSink: 1
-  _baselineWarmupFrames: 8
-  _allowedSink: 0.01
-  _animator: {fileID: 0}
-  _skinnedMeshes: []
-  _baselineCaptured: 0
-  _baselineMinY: 0
-  _highestObservedMinY: 0
-  _warmupFrameCounter: 0
 --- !u!1 &861341912
 GameObject:
   m_ObjectHideFlags: 0
@@ -4311,7 +4298,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1009064575
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9779,6 +9766,8 @@ MonoBehaviour:
   _idleBlendDuration: 0.2
   _hpApplyDelay: 2
   _postHpDelay: 0.8
+  _resultTextDelay: 2
+  _countdownStepDuration: 2.5
   _hitStopDuration: 0.07
   _shakeMultiplier: 1
   _sealedHands: 01000000
@@ -10254,7 +10243,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 769b54b729f352743b5f0a3b4fbddad8, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -2.9990215
+      value: -2.03
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 769b54b729f352743b5f0a3b4fbddad8, type: 3}
       propertyPath: m_LocalRotation.w
