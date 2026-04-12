@@ -19,7 +19,9 @@ public class CameraManager : MonoBehaviour
     [Header("�ð� ����")]
     public float waitBeforeStart = 3.1f;   // ���� ��� �ð�
     public float introDuration = 3.0f;    // �� ��Ʈ�� �̵� �ð�
-    public float zoomOutDuration = 1.5f;  // �ܾƿ� ���� �ð�
+    public float zoomOutDuration = 2.5f;  // �ܾƿ� ���� �ð�
+
+    public float holdBeforeZoomOut = 0f;
 
     public CameraShake cameraShake;
 
@@ -32,6 +34,10 @@ public class CameraManager : MonoBehaviour
     public Vector3 resultCamPosition = new Vector3(-5.76f, 2.57f, -0.18f);
     public Vector3 resultCamRotation = new Vector3(15.708f, 90.049f, -0.013f);
     [Range(0.3f, 2f)] public float resultCamMoveDuration = 0.8f;
+
+    [Header("줌아웃 풀-푸시 (보 이후 카메라 연출)")]
+    [Tooltip("줌아웃 시작 시 FOV를 얼마나 넓힐지 (넓힘 = 뒤로 빠지는 느낌)")]
+    [Range(0f, 10f)] public float zoomOutPullFOV = 4f;
 
     private Camera _mainCamera;
 
@@ -61,12 +67,25 @@ public class CameraManager : MonoBehaviour
 
         // 4. �߾� �ܾƿ� ���� + �ü� ���߱�
         SwitchCamera(introZoomOutCam);
+        if (holdBeforeZoomOut > 0f)
+        {
+            yield return new WaitForSeconds(holdBeforeZoomOut);
+        }
 
         // ������ ���� ������Ʈ ��������
         var composer = introZoomOutCam.GetComponent<CinemachineRotationComposer>();
         var splineDolly = introZoomOutCam.GetComponent<CinemachineSplineDolly>();
         var settings = introZoomOutCam.GetComponent<CameraMoveSettings>();
         float elapsed = 0f;
+
+        // FOV 풀-푸시: 시작 시 살짝 넓혀두고(뒤로 빠진 느낌) → 줌아웃 동안 원래대로 좁혀옴(앞으로 오는 느낌)
+        float originalFOV = introZoomOutCam.Lens.FieldOfView;
+        if (zoomOutPullFOV > 0f)
+        {
+            var lens = introZoomOutCam.Lens;
+            lens.FieldOfView = originalFOV + zoomOutPullFOV;
+            introZoomOutCam.Lens = lens;
+        }
 
         while (elapsed < zoomOutDuration)
         {
@@ -84,7 +103,22 @@ public class CameraManager : MonoBehaviour
             {
                 splineDolly.CameraPosition = progress;
             }
+            // D. FOV: 넓힌 상태 → 원래대로 천천히 좁혀옴 (앞으로 밀려오는 느낌)
+            if (zoomOutPullFOV > 0f)
+            {
+                var lens = introZoomOutCam.Lens;
+                lens.FieldOfView = Mathf.Lerp(originalFOV + zoomOutPullFOV, originalFOV, progress);
+                introZoomOutCam.Lens = lens;
+            }
             yield return null;
+        }
+
+        // FOV 복구
+        if (zoomOutPullFOV > 0f)
+        {
+            var lens = introZoomOutCam.Lens;
+            lens.FieldOfView = originalFOV;
+            introZoomOutCam.Lens = lens;
         }
 
         //yield return new WaitForSeconds(zoomOutDuration);
@@ -260,11 +294,12 @@ public class CameraManager : MonoBehaviour
     // ��Ʈ�� ����� �帧
     public async Task RestartSequence()
     {
-        await Task.Delay(100); 
+        await Task.Delay(100);
 
         // 3. ��Ʈ�� �ڷ�ƾ ����
         StopAllCoroutines();
         StartCoroutine(PlayFullIntroSequence());
     }
+
 }
 

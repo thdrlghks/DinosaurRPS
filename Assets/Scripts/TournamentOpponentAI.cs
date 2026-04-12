@@ -15,12 +15,12 @@ namespace Gameplay
             
             if (stage == TournamentStage.QuarterFinals)
             {
-                return GetNonWinningHand(playerHand);
+                return GetPlayerFavoredHand(playerHand);
             }
             
             if (stage == TournamentStage.SemiFinals && !hasPlayerWonOnce)
             {
-                return GetNonWinningHand(playerHand);
+                return GetPlayerFavoredHand(playerHand);
             }
             
             return GetRandomHand();
@@ -37,7 +37,7 @@ namespace Gameplay
             };
         }
         
-        private HandType GetNonWinningHand(HandType playerHand)
+        private HandType GetPlayerFavoredHand(HandType playerHand)
         {
             int choice = Random.Range(0, 3);
 

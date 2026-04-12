@@ -4,8 +4,6 @@ using Core.Data;
 using Core.Enums;
 using Core.Interfaces;
 using Cysharp.Threading.Tasks;
-using DefaultNamespace;
-using DefaultNamespace.Gameplay;
 using Gameplay;
 using TMPro;
 using UnityEngine;
@@ -54,17 +52,23 @@ namespace Managers
 
         [Header("Hand Cam RawImages")]
         [SerializeField] private GameObject _cameraCanvas;
+        [SerializeField] private Transform _tyrannoHandCam;
+        [SerializeField] private Transform _chickenHandCam;
 
         [Header("Camera & Settings")] [SerializeField]
         private CameraManager _camController;
 
         [SerializeField] private float _resultDisplayTime = 2f;
-        [SerializeField, Range(1f, 5f)] private float _rawImageDisplayTime = 3f;
+        [SerializeField, Range(1f, 5f)] private float _rawImageDisplayTime = 2f;
         [SerializeField, Range(0.05f, 0.5f)] private float _idleBlendDuration = 0.2f;
         [SerializeField, Min(0f)] private float _hpApplyDelay = 2f;
-        [SerializeField, Min(0f)] private float _postHpDelay = 0.8f;
+        [SerializeField, Min(0f)] private float _postHpDelay = 2f;
+        [Tooltip("Win/Lose 댄스 애니메이션 총 길이 — 이 시간이 지난 후 HP가 감소합니다")]
+        [SerializeField, Min(0f)] private float _danceAnimationDuration = 2f;
         [SerializeField, Min(0f)] private float _resultTextDelay = 2f;
-        [SerializeField, Min(0.5f)] private float _countdownStepDuration = 2.5f;
+        [SerializeField, Min(0.5f)] private float _countdownStepDuration = 2.4f;
+        [SerializeField, Range(0f, 1f)] private float _countdownGapDuration = 0.5f;
+        [SerializeField, Range(0f, 1f)] private float _paperAdvanceDuration = 0.8f;
 
         [Header("Hit Effects")]
         [SerializeField, Range(0.03f, 0.15f)] private float _hitStopDuration = 0.07f;
@@ -75,6 +79,7 @@ namespace Managers
         [SerializeField] private TMP_Text _sealedWarningText;
 
         //Private Value
+        private const int AnimationLayerIndex = 0;
         private HandType? _selectedHand;
         private IGameJudge _gameJudge;
         private IOpponentHandGenerator _opponentAI;
@@ -92,6 +97,8 @@ namespace Managers
             if (_sfxManager == null)
             {
                 _sfxManager = FindObjectOfType<SFXManager>();
+                if (_sfxManager == null)
+                    Debug.LogError("[TournamentGameManager] SFXManager not found. Assign it in the Inspector.", this);
             }
             var gameJudgeComponent = GetComponent<GameJudge>();
             if (gameJudgeComponent != null)
@@ -111,6 +118,8 @@ namespace Managers
             if (_uiManager == null)
             {
                 _uiManager = FindObjectOfType<UIManager>();
+                if (_uiManager == null)
+                    Debug.LogError("[TournamentGameManager] UIManager not found. Assign it in the Inspector.", this);
             }
         }
 
@@ -370,6 +379,7 @@ namespace Managers
                     0.5f,
                     cancellationToken
                 );
+                await DelayIfNeeded(_countdownGapDuration, cancellationToken);
             }
 
             if (_roundStartUIRock)
@@ -379,10 +389,11 @@ namespace Managers
                     _roundStartUIRock.transform,
                     new Vector3(1.2f, 1.2f, 1f),
                     new Vector3(1.8f, 1.8f, 1.5f),
-                    _countdownStepDuration,
+                    Mathf.Max(0.5f, _countdownStepDuration - _paperAdvanceDuration),
                     0.5f,
                     cancellationToken
                 );
+                await DelayIfNeeded(_countdownGapDuration, cancellationToken);
             }
 
             if (_roundStartUIPaper)
@@ -401,9 +412,19 @@ namespace Managers
             if (_balloon)
             {
                 // "보" 타이밍에 말풍선을 가위/바위처럼 가만히 두고 그냥 비활성화
-                await UniTask.Delay(1000, cancellationToken: cancellationToken);
+                await DelayIfNeeded(Mathf.Max(0.25f, _countdownGapDuration + 0.1f), cancellationToken);
                 _balloon.SetActive(false);
             }
+        }
+
+        private static async UniTask DelayIfNeeded(float delaySeconds, CancellationToken cancellationToken)
+        {
+            if (delaySeconds <= 0f)
+            {
+                return;
+            }
+
+            await UniTask.Delay((int)(delaySeconds * 1000f), cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -458,6 +479,7 @@ namespace Managers
                 Debug.Log("[ProcessRound] 비김! 손 모션 보여주고 바로 다시 라운드 시작");
 
                 // 카메라 캐릭터쪽으로 이동
+                SetBattleUIVisible(false);
                 await _camController.MoveToResultPosition();
 
                 // 카메라 도착 후 손 애니메이션 트리거
@@ -465,6 +487,7 @@ namespace Managers
                 PlayHandAnimation(_opponentAnimator, opponentHand);
 
                 // HandCam RawImage 표시
+                ApplyHandCamPositions();
                 if (_cameraCanvas != null)
                     _cameraCanvas.SetActive(true);
 
@@ -472,9 +495,11 @@ namespace Managers
                 await UniTask.Delay((int)(_rawImageDisplayTime * 1000f), cancellationToken: cancellationToken);
 
                 // HandCam 끄기
+                RestoreHandCamFollow();
                 if (_cameraCanvas != null)
                     _cameraCanvas.SetActive(false);
                 HideRPSSelectUI();
+                SetBattleUIVisible(true);
 
                 // 카메라 복귀
                 _camController.RestoreCinemachine();
@@ -490,6 +515,7 @@ namespace Managers
             }
 
             // === MainCamera를 결과 좌표로 직접 이동 ===
+            SetBattleUIVisible(false);
             await _camController.MoveToResultPosition();
 
             // 카메라 도착 후 손 애니메이션 트리거
@@ -497,6 +523,7 @@ namespace Managers
             PlayHandAnimation(_opponentAnimator, opponentHand);
 
             // HandCam RawImage 표시 (카메라 이동 후)
+            ApplyHandCamPositions();
             if (_cameraCanvas != null)
                 _cameraCanvas.SetActive(true);
 
@@ -504,10 +531,11 @@ namespace Managers
             await UniTask.Delay((int)(_rawImageDisplayTime * 1000f), cancellationToken: cancellationToken);
 
             // HandCam RawImage 숨기기 (승리모션 전에 꺼야 함)
+            RestoreHandCamFollow();
             if (_cameraCanvas != null)
                 _cameraCanvas.SetActive(false);
 
-            HideRPSSelectUI();
+            SetBattleUIVisible(true);
 
             // === 승패 문구를 먼저 화면 가운데에 표시 ===
             if (_uiManager != null)
@@ -519,6 +547,8 @@ namespace Managers
             await UniTask.Delay((int)(_resultTextDelay * 1000f), cancellationToken: cancellationToken);
 
             // === 배틀 애니메이션 재생 (Win/Lose 모션) ===
+            int playerStateHashBeforeBattle = GetCurrentStateHash(_playerAnimator);
+            int opponentStateHashBeforeBattle = GetCurrentStateHash(_opponentAnimator);
             PlayBattleAnimations(result);
 
             if (_uiManager != null)
@@ -540,21 +570,9 @@ namespace Managers
             // === 2선승제: 반피 헤롱헤롱 체크 ===
             CheckHalfHealthStagger(result);
 
-            float hpDelay = Mathf.Max(0f, Mathf.Min(_hpApplyDelay, _resultDisplayTime));
-            if (hpDelay > 0f)
-            {
-                await UniTask.Delay((int)(hpDelay * 1000f), cancellationToken: cancellationToken);
-            }
-
-            // === 설정한 타이밍에 HP 감소 ===
+            // === 댄스 애니메이션이 끝날 때까지 대기한 후 HP 감소 ===
+            await WaitForBattleAnimationsToFinish(playerStateHashBeforeBattle, opponentStateHashBeforeBattle, cancellationToken);
             UpdateHealthBars();
-
-            // 결과 모션 남은 시간 대기
-            float remainResultTime = Mathf.Max(0f, _resultDisplayTime - hpDelay);
-            if (remainResultTime > 0f)
-            {
-                await UniTask.Delay((int)(remainResultTime * 1000f), cancellationToken: cancellationToken);
-            }
 
             // === 카메라 복귀: Cinemachine 다시 활성화 ===
             _camController.RestoreCinemachine();
@@ -575,7 +593,7 @@ namespace Managers
                 await UniTask.Delay(1000, cancellationToken: cancellationToken);
             }
 
-            await UniTask.Delay((int)(_resultDisplayTime * 500), cancellationToken: cancellationToken);
+            await UniTask.Delay((int)(_resultDisplayTime * 1000f), cancellationToken: cancellationToken);
 
             ResetAnimations();
             UpdateUI();
@@ -589,6 +607,38 @@ namespace Managers
                 _canInput = true;
                 StartRound().Forget();
                 await _camController.RestartSequence();
+            }
+        }
+
+        private void ApplyHandCamPositions()
+        {
+            if (_tyrannoHandCam != null)
+            {
+                var follow = _tyrannoHandCam.GetComponent<HandPreviewFollow>();
+                if (follow != null) follow.enabled = false;
+                _tyrannoHandCam.position = new Vector3(-3.658f, 2.232f, 1.201f);
+                _tyrannoHandCam.rotation = Quaternion.Euler(0f, 90f, 0f);
+            }
+            if (_chickenHandCam != null)
+            {
+                var follow = _chickenHandCam.GetComponent<HandPreviewFollow>();
+                if (follow != null) follow.enabled = false;
+                _chickenHandCam.position = new Vector3(-4.632f, 1.468f, -1.245f);
+                _chickenHandCam.rotation = Quaternion.Euler(0f, 90f, 0f);
+            }
+        }
+
+        private void RestoreHandCamFollow()
+        {
+            if (_tyrannoHandCam != null)
+            {
+                var follow = _tyrannoHandCam.GetComponent<HandPreviewFollow>();
+                if (follow != null) follow.enabled = true;
+            }
+            if (_chickenHandCam != null)
+            {
+                var follow = _chickenHandCam.GetComponent<HandPreviewFollow>();
+                if (follow != null) follow.enabled = true;
             }
         }
 
@@ -771,6 +821,88 @@ namespace Managers
             }
         }
 
+        private int GetCurrentStateHash(Animator animator)
+        {
+            if (animator == null)
+            {
+                return 0;
+            }
+
+            return animator.GetCurrentAnimatorStateInfo(AnimationLayerIndex).fullPathHash;
+        }
+
+        private async UniTask WaitForBattleAnimationsToFinish(
+            int playerStateHashBeforeBattle,
+            int opponentStateHashBeforeBattle,
+            CancellationToken cancellationToken)
+        {
+            await UniTask.WhenAll(
+                WaitForAnimatorStateCycle(_playerAnimator, playerStateHashBeforeBattle, cancellationToken),
+                WaitForAnimatorStateCycle(_opponentAnimator, opponentStateHashBeforeBattle, cancellationToken)
+            );
+        }
+
+        private async UniTask WaitForAnimatorStateCycle(
+            Animator animator,
+            int previousStateHash,
+            CancellationToken cancellationToken)
+        {
+            if (animator == null)
+            {
+                return;
+            }
+
+            float waitForEnterTimeout = 1.5f;
+            float waitForEndTimeout = Mathf.Max(1f, _danceAnimationDuration + 1f);
+            float elapsed = 0f;
+            int enteredStateHash = 0;
+
+            while (elapsed < waitForEnterTimeout)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!animator.IsInTransition(AnimationLayerIndex))
+                {
+                    AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
+                    if (stateInfo.fullPathHash != previousStateHash)
+                    {
+                        enteredStateHash = stateInfo.fullPathHash;
+                        break;
+                    }
+                }
+
+                elapsed += Time.deltaTime;
+                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+            }
+
+            if (enteredStateHash == 0)
+            {
+                return;
+            }
+
+            elapsed = 0f;
+            while (elapsed < waitForEndTimeout)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                bool isInTransition = animator.IsInTransition(AnimationLayerIndex);
+                AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
+
+                if (stateInfo.fullPathHash != enteredStateHash)
+                {
+                    return;
+                }
+
+                if (!isInTransition && stateInfo.normalizedTime >= 1f)
+                {
+                    return;
+                }
+
+                elapsed += Time.deltaTime;
+                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+            }
+        }
+
         #endregion
 
         #region RPSSelectUI
@@ -792,6 +924,20 @@ namespace Managers
                 _rpsSelectCanvas.SetActive(false);
         }
 
+        private void SetHealthUIVisible(bool isVisible)
+        {
+            if (_gameHealthCanvas != null)
+                _gameHealthCanvas.gameObject.SetActive(isVisible);
+        }
+
+        private void SetBattleUIVisible(bool isVisible)
+        {
+            SetHealthUIVisible(isVisible);
+
+            if (_rpsSelectCanvas != null)
+                _rpsSelectCanvas.SetActive(isVisible);
+        }
+
         private void HighlightRPSSelection(HandType handType)
         {
             ResetRPSColors();
@@ -805,7 +951,10 @@ namespace Managers
             };
 
             if (targetImage != null)
+            {
                 targetImage.color = _selectedColor;
+                targetImage.rectTransform.localScale = new Vector3(1.12f, 1.12f, 1f);
+            }
         }
 
 

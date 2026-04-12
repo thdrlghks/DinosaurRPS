@@ -44,6 +44,10 @@ namespace Managers
         [SerializeField] private float _handSlideOutDuration = 0.3f;
         [SerializeField] private float _slideDistance = 300f;
 
+        [Header("Damage Feedback")]
+        [SerializeField] private Color _damageFlashColor = new Color(1f, 0.45f, 0.45f, 1f);
+        [SerializeField, Range(0.05f, 0.4f)] private float _damageFlashDuration = 0.18f;
+
         private int _maxPlayerHealth;
         private int _maxOpponentHealth;
         private int _currentPlayerHealth;
@@ -58,11 +62,37 @@ namespace Managers
 
         private Vector3 _playerHandOriginalPosition;
         private Vector3 _opponentHandOriginalPosition;
+        private Color _playerHealthBarOriginalColor = Color.white;
+        private Color _opponentHealthBarOriginalColor = Color.white;
+        private Color _playerHealthTrailOriginalColor = Color.white;
+        private Color _opponentHealthTrailOriginalColor = Color.white;
 
         private Coroutine _handDisplayCoroutine;
+        private Coroutine _playerDamageFlashCoroutine;
+        private Coroutine _opponentDamageFlashCoroutine;
 
         private void Awake()
         {
+            if (_playerHealthBar != null)
+            {
+                _playerHealthBarOriginalColor = _playerHealthBar.color;
+            }
+
+            if (_opponentHealthBar != null)
+            {
+                _opponentHealthBarOriginalColor = _opponentHealthBar.color;
+            }
+
+            if (_playerHealthTrail != null)
+            {
+                _playerHealthTrailOriginalColor = _playerHealthTrail.color;
+            }
+
+            if (_opponentHealthTrail != null)
+            {
+                _opponentHealthTrailOriginalColor = _opponentHealthTrail.color;
+            }
+
             if (_playerHandImage != null)
             {
                 _playerHandOriginalPosition = _playerHandImage.rectTransform.anchoredPosition;
@@ -211,6 +241,9 @@ namespace Managers
 
         public void UpdateHealthBars(int playerHealth, int opponentHealth)
         {
+            bool playerTookDamage = playerHealth < _currentPlayerHealth;
+            bool opponentTookDamage = opponentHealth < _currentOpponentHealth;
+
             _currentPlayerHealth = playerHealth;
             _currentOpponentHealth = opponentHealth;
 
@@ -234,6 +267,93 @@ namespace Managers
 
             _targetPlayerFill = newPlayerFill;
             _targetOpponentFill = newOpponentFill;
+
+            if (playerTookDamage)
+            {
+                TriggerHealthFlash(
+                    ref _playerDamageFlashCoroutine,
+                    _playerHealthBar,
+                    _playerHealthTrail,
+                    _playerHealthBarOriginalColor,
+                    _playerHealthTrailOriginalColor);
+            }
+
+            if (opponentTookDamage)
+            {
+                TriggerHealthFlash(
+                    ref _opponentDamageFlashCoroutine,
+                    _opponentHealthBar,
+                    _opponentHealthTrail,
+                    _opponentHealthBarOriginalColor,
+                    _opponentHealthTrailOriginalColor);
+            }
+        }
+
+        private void TriggerHealthFlash(
+            ref Coroutine flashCoroutine,
+            Image primaryImage,
+            Image secondaryImage,
+            Color primaryOriginalColor,
+            Color secondaryOriginalColor)
+        {
+            if (primaryImage == null && secondaryImage == null)
+            {
+                return;
+            }
+
+            if (flashCoroutine != null)
+            {
+                StopCoroutine(flashCoroutine);
+            }
+
+            flashCoroutine = StartCoroutine(FlashHealthBarCoroutine(
+                primaryImage,
+                secondaryImage,
+                primaryOriginalColor,
+                secondaryOriginalColor));
+        }
+
+        private IEnumerator FlashHealthBarCoroutine(
+            Image primaryImage,
+            Image secondaryImage,
+            Color primaryOriginalColor,
+            Color secondaryOriginalColor)
+        {
+            float elapsed = 0f;
+            float halfDuration = _damageFlashDuration * 0.5f;
+
+            while (elapsed < _damageFlashDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = halfDuration <= 0f
+                    ? 1f
+                    : (elapsed <= halfDuration
+                        ? elapsed / halfDuration
+                        : 1f - ((elapsed - halfDuration) / halfDuration));
+                t = Mathf.Clamp01(t);
+
+                if (primaryImage != null)
+                {
+                    primaryImage.color = Color.Lerp(primaryOriginalColor, _damageFlashColor, t);
+                }
+
+                if (secondaryImage != null)
+                {
+                    secondaryImage.color = Color.Lerp(secondaryOriginalColor, _damageFlashColor, t);
+                }
+
+                yield return null;
+            }
+
+            if (primaryImage != null)
+            {
+                primaryImage.color = primaryOriginalColor;
+            }
+
+            if (secondaryImage != null)
+            {
+                secondaryImage.color = secondaryOriginalColor;
+            }
         }
 
         #endregion

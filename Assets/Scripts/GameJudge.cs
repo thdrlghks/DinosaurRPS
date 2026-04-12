@@ -1,13 +1,11 @@
-namespace DefaultNamespace
-{
-    using Core.Enums;
-    using Core.Interfaces;
-    using UnityEngine;
+using Core.Enums;
+using Core.Interfaces;
+using UnityEngine;
 
-    namespace Gameplay
+namespace Gameplay
+{
+    public class GameJudge : MonoBehaviour, IGameJudge
     {
-        public class GameJudge : MonoBehaviour, IGameJudge
-        {
             public GameResult DetermineResult(HandType playerHand, HandType opponentHand)
             {
                 if (playerHand == opponentHand)
@@ -107,6 +105,5 @@ namespace DefaultNamespace
                     $"<color={resultColor}>[Game Result] Player: {playerHand} vs Opponent: {opponentHand} = {result}</color>");
                 Debug.Log($"<color={resultColor}>{GetRuleDescription(playerHand, opponentHand)}</color>");
             }
-        }
     }
 }

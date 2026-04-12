@@ -31,6 +31,7 @@ namespace Managers
         [SerializeField] private string _startScene = "01Start";
         [SerializeField] private string _start8Scene = "02Start8";
         [SerializeField] private string _quarterFinalsScene = "03Forest";  // 8강 전투
+        [SerializeField] private string _end80Scene = "03End80";
         [SerializeField] private string _end8Scene = "04End8";
         [SerializeField] private string _start4Scene = "05Start4";
         [SerializeField] private string _semiFinalsScene = "06Lava";       // 4강 전투
@@ -40,8 +41,8 @@ namespace Managers
         [SerializeField] private string _end2Scene = "10End2";             // 최종 승리
         
         [Header("Settings")]
-        [SerializeField] private float _animationSceneDisplayTime = 3f;
-        [SerializeField] private float _shortAnimationDisplayTime = 2f;
+        [SerializeField] private float _animationSceneDisplayTime = 2f;
+        [SerializeField] private float _shortAnimationDisplayTime = 1.2f;
         
         [Header("Loading UI (Optional)")]
         [SerializeField] private GameObject _loadingScreenPrefab;
@@ -212,7 +213,9 @@ namespace Managers
             switch (currentStage)
             {
                 case TournamentStage.QuarterFinals:
-                    // 03Forest 승리 → 04End8 → 05Start4 → 06Lava
+                    // 03Forest 승리 → 03End80 → 04End8 → 05Start4 → 06Lava
+                    yield return LoadSceneAndWait(_end80Scene);
+                    yield return new WaitForSeconds(_animationSceneDisplayTime);
                     yield return LoadSceneAndWait(_end8Scene);
                     yield return new WaitForSeconds(_animationSceneDisplayTime);
                     yield return LoadSceneAndWait(_start4Scene);

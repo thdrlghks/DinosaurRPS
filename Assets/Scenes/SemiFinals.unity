@@ -5294,6 +5294,17 @@ MonoBehaviour:
   _balloon: {fileID: 182900041}
   _camController: {fileID: 341776527}
   _resultDisplayTime: 2
+  _rawImageDisplayTime: 2
+  _idleBlendDuration: 0.2
+  _hpApplyDelay: 2
+  _postHpDelay: 2
+  _danceAnimationDuration: 2
+  _resultTextDelay: 2
+  _countdownStepDuration: 2
+  _countdownGapDuration: 0.3
+  _paperAdvanceDuration: 0.5
+  _hitStopDuration: 0.07
+  _shakeMultiplier: 1
 --- !u!4 &2043612405
 Transform:
   m_ObjectHideFlags: 0

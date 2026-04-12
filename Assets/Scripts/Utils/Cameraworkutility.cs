@@ -223,7 +223,7 @@ public class CameraWorkUtility : MonoBehaviour
 
     /// <summary>패배 판정, 긴장감 높은 장면에 사용</summary>
     [ContextMenu("▶ 더치 틸트 테스트")]
-    public async void PlayDutchTilt()
+    public async UniTask PlayDutchTilt()
     {
         if (targetCamera == null) return;
         KillAll();
@@ -252,7 +252,7 @@ public class CameraWorkUtility : MonoBehaviour
 
     /// <summary>인트로, 캐릭터 소개, 결승 진입 씬에 사용</summary>
     [ContextMenu("▶ 돌리 푸시인 테스트")]
-    public async void PlayDollyPushIn()
+    public async UniTask PlayDollyPushIn()
     {
         if (targetCamera == null) return;
         KillAll();
@@ -277,7 +277,7 @@ public class CameraWorkUtility : MonoBehaviour
 
     /// <summary>승리 확정 후 축하 연출에 사용</summary>
     [ContextMenu("▶ 빅토리 오빗 테스트")]
-    public async void PlayVictoryOrbit()
+    public async UniTask PlayVictoryOrbit()
     {
         if (targetCamera == null) return;
         KillAll();
@@ -323,7 +323,7 @@ public class CameraWorkUtility : MonoBehaviour
 
     /// <summary>패 공개 전 긴장감 조성, 4강/결승 인트로에 사용</summary>
     [ContextMenu("▶ 시네마틱 슬로우 줌 테스트")]
-    public async void PlaySlowZoom()
+    public async UniTask PlaySlowZoom()
     {
         if (targetCamera == null) return;
         KillAll();
@@ -347,7 +347,7 @@ public class CameraWorkUtility : MonoBehaviour
 
     /// <summary>레터박스 등장 (시네마틱 시작 시 호출)</summary>
     [ContextMenu("▶ 레터박스 IN 테스트")]
-    public async void PlayLetterboxIn()
+    public async UniTask PlayLetterboxIn()
     {
         if (letterboxTop == null || letterboxBottom == null) return;
         var ct = RefreshCTS();
@@ -365,7 +365,7 @@ public class CameraWorkUtility : MonoBehaviour
 
     /// <summary>레터박스 퇴장 (시네마틱 종료 시 호출)</summary>
     [ContextMenu("▶ 레터박스 OUT 테스트")]
-    public async void PlayLetterboxOut()
+    public async UniTask PlayLetterboxOut()
     {
         if (letterboxTop == null || letterboxBottom == null) return;
         var ct = RefreshCTS();
@@ -395,22 +395,22 @@ public class CameraWorkUtility : MonoBehaviour
 
     /// <summary>패배 판정 — 더치틸트 + 슬로우 줌인</summary>
     [ContextMenu("▶ [콤보] 패배 드라마틱")]
-    public async void PlayDefeatDramatic()
+    public async UniTask PlayDefeatDramatic()
     {
-        PlayDutchTilt();
+        PlayDutchTilt().Forget();
         await UniTask.Delay(TimeSpan.FromSeconds(0.1f));
-        PlaySlowZoom();
+        PlaySlowZoom().Forget();
     }
 
     /// <summary>승리 확정 — 줌펀치 → 레터박스IN → 오빗</summary>
     [ContextMenu("▶ [콤보] 승리 셀레브레이션")]
-    public async void PlayVictoryCelebration()
+    public async UniTask PlayVictoryCelebration()
     {
         PlayZoomPunch();
         await UniTask.Delay(TimeSpan.FromSeconds(0.3f));
-        PlayLetterboxIn();
+        PlayLetterboxIn().Forget();
         await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
-        PlayVictoryOrbit();
+        PlayVictoryOrbit().Forget();
     }
 
     /// <summary>씬 전환 전 FOV 원위치 복귀 (씬 전환 직전에 호출 권장)</summary>

@@ -1,28 +1,13 @@
-using UnityEngine;
 using System.Collections.Generic;
+using Core;
+using UnityEngine;
 
-public class SFXManager : MonoBehaviour
+public class SFXManager : SingletonMonoBehaviour<SFXManager>
 {
-    public static SFXManager Instance { get; private set; }
-
-    [SerializeField] private List<AudioSource> sfxSources = new(); // ���� ȿ������ AudioSource
+    [SerializeField] private List<AudioSource> sfxSources = new();
     [SerializeField] private AudioClip winSound;
     [SerializeField] private AudioClip rpsSound;
-
     [SerializeField] private AudioClip fightSound;
-    // ... ���� �߰�
-
-    private void Awake()
-    {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
-    }
 
     public void PlayWinSound()
     {

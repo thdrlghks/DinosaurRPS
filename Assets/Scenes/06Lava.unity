@@ -3168,6 +3168,17 @@ MonoBehaviour:
   _rpsScissorsImage: {fileID: 1357929674}
   _camController: {fileID: 1161339965}
   _resultDisplayTime: 2
+  _rawImageDisplayTime: 2
+  _idleBlendDuration: 0.2
+  _hpApplyDelay: 2
+  _postHpDelay: 2
+  _danceAnimationDuration: 2
+  _resultTextDelay: 2
+  _countdownStepDuration: 2
+  _countdownGapDuration: 0.3
+  _paperAdvanceDuration: 0.5
+  _hitStopDuration: 0.07
+  _shakeMultiplier: 1
 --- !u!4 &1009977413
 Transform:
   m_ObjectHideFlags: 0

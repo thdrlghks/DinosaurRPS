@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using UnityEngine.Video;
 using Entry = UnityEngine.EventSystems.EventTrigger.Entry;
 
-namespace DefaultNamespace
+namespace Managers
 {
     public class VideoSceneTransition : MonoBehaviour
     {

@@ -249,8 +249,8 @@ MonoBehaviour:
   _start2Scene: 08Start2
   _finalRoundScene: 09Space
   _end2Scene: 10End2
-  _animationSceneDisplayTime: 3
-  _shortAnimationDisplayTime: 2
+  _animationSceneDisplayTime: 2
+  _shortAnimationDisplayTime: 1.2
   _loadingScreenPrefab: {fileID: 0}
 --- !u!1 &91512852
 GameObject:

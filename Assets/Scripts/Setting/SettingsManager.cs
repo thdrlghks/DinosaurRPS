@@ -1,25 +1,15 @@
+using Core;
 using UnityEngine;
 
-public class SettingsManager : MonoBehaviour
+public class SettingsManager : SingletonMonoBehaviour<SettingsManager>
 {
-    public static SettingsManager Instance { get; private set; }
-
     public GameSettings settings;
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
-
-
         ApplySettings();
     }
+
     public void ApplySettings()
     {
         AudioListener.volume = settings.masterVolume;

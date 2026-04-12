@@ -1,32 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Core;
 using Core.Enums;
 using UnityEngine;
 
 namespace Core.Data
 {
-    public class BattleHistoryManager : MonoBehaviour
+    public class BattleHistoryManager : SingletonMonoBehaviour<BattleHistoryManager>
     {
-        public static BattleHistoryManager Instance { get; private set; }
-
         [SerializeField] private List<MatchRecord> _matchHistory = new();
         private MatchRecord _currentMatch;
 
         public IReadOnlyList<MatchRecord> MatchHistory => _matchHistory;
         public MatchRecord CurrentMatch => _currentMatch;
 
-        private void Awake()
+        protected override void OnAwake()
         {
-            if (Instance != null && Instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-            
             LoadFromPlayerPrefs();
         }
 
