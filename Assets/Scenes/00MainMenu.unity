@@ -242,6 +242,7 @@ MonoBehaviour:
   _startScene: 01Start
   _start8Scene: 02Start8
   _quarterFinalsScene: 03Forest
+  _end80Scene: 03End80
   _end8Scene: 04End8
   _start4Scene: 05Start4
   _semiFinalsScene: 06Lava
@@ -845,6 +846,7 @@ GameObject:
   - component: {fileID: 699437495}
   - component: {fileID: 699437494}
   - component: {fileID: 699437493}
+  - component: {fileID: 699437497}
   m_Layer: 5
   m_Name: UICanvas
   m_TagString: Untagged
@@ -940,6 +942,20 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!114 &699437497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 699437492}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c42bc1d352ed35408a4f4eda32b30dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Setting.SettingPanelONOFF
+  settingsPanel: {fileID: 7639672909438305582}
+  settingUI: {fileID: 2801893038002253098}
 --- !u!1 &740755585
 GameObject:
   m_ObjectHideFlags: 0
@@ -1015,54 +1031,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 740755585}
   m_CullTransparentMesh: 1
---- !u!1 &748905390
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 748905392}
-  - component: {fileID: 748905391}
-  m_Layer: 0
-  m_Name: SFXManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &748905391
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 748905390}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 320daa42678a03643a7f02e3783348da, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SFXManager
-  sfxSources: []
-  winSound: {fileID: 8300000, guid: 01adea5f6cdc9f543b1b76edb2f9cd84, type: 3}
-  rpsSound: {fileID: 8300000, guid: 6291226f03ede1640831fc68106b7990, type: 3}
-  fightSound: {fileID: 8300000, guid: 6291226f03ede1640831fc68106b7990, type: 3}
---- !u!4 &748905392
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 748905390}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 83.48228, y: 0, z: -14.20672}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &903012460
 GameObject:
   m_ObjectHideFlags: 0
@@ -1700,9 +1668,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1762291327}
-        m_TargetAssemblyTypeName: SettingPanelONOFF, Assembly-CSharp
-        m_MethodName: ClosePanel
+      - m_Target: {fileID: 2801893038002253098}
+        m_TargetAssemblyTypeName: SettingUI, Assembly-CSharp
+        m_MethodName: OnClickConfirm
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -2020,7 +1988,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1762291326}
   - component: {fileID: 1762291325}
-  - component: {fileID: 1762291327}
   - component: {fileID: 1762291328}
   m_Layer: 0
   m_Name: SettingController
@@ -2057,19 +2024,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1762291327
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1762291324}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2c42bc1d352ed35408a4f4eda32b30dd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  settingsPanel: {fileID: 7639672909438305582}
 --- !u!114 &1762291328
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2083,9 +2037,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SFXManager
   sfxSources: []
-  winSound: {fileID: 0}
-  rpsSound: {fileID: 0}
-  fightSound: {fileID: 0}
+  winSound: {fileID: 8300000, guid: 01adea5f6cdc9f543b1b76edb2f9cd84, type: 3}
+  rpsSound: {fileID: 8300000, guid: 6291226f03ede1640831fc68106b7990, type: 3}
+  fightSound: {fileID: 8300000, guid: 6291226f03ede1640831fc68106b7990, type: 3}
 --- !u!1 &1784740399
 GameObject:
   m_ObjectHideFlags: 0
@@ -2281,9 +2235,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1762291327}
-        m_TargetAssemblyTypeName: SettingPanelONOFF, Assembly-CSharp
-        m_MethodName: TogglePanel
+      - m_Target: {fileID: 699437497}
+        m_TargetAssemblyTypeName: Setting.SettingPanelONOFF, Assembly-CSharp
+        m_MethodName: OpenPanel
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -3465,9 +3419,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1762291327}
-        m_TargetAssemblyTypeName: SettingPanelONOFF, Assembly-CSharp
-        m_MethodName: ClosePanel
+      - m_Target: {fileID: 2801893038002253098}
+        m_TargetAssemblyTypeName: SettingUI, Assembly-CSharp
+        m_MethodName: OnClickCancel
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -3983,4 +3937,3 @@ SceneRoots:
   - {fileID: 1762291326}
   - {fileID: 1407012824}
   - {fileID: 1679516608}
-  - {fileID: 748905392}

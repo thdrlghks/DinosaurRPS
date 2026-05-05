@@ -28,7 +28,6 @@ public class SFXManager : SingletonMonoBehaviour<SFXManager>
     {
         if (clip == null) return;
 
-        // ��� ������ AudioSource ã��
         AudioSource source = sfxSources.Find(s => !s.isPlaying);
         if (source == null)
         {
