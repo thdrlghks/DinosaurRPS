@@ -13,7 +13,11 @@ public class SettingsManager : SingletonMonoBehaviour<SettingsManager>
     public void ApplySettings()
     {
         AudioListener.volume = settings.masterVolume;
-        // + soundEffect volume
+        SFXManager sfx = GetComponent<SFXManager>();
+        if (sfx != null)
+        {
+            sfx.UpdateEffectVolume(settings.effectVolume);
+        }
         Screen.fullScreen = settings.isFullScreen;
     }
 }
