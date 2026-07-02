@@ -7,14 +7,26 @@ using System.Threading.Tasks;
 
 public class CameraManager : MonoBehaviour
 {
+    [System.Serializable]
+    public class AnimationCameraBinding
+    {
+        public string triggerName;
+        public CinemachineCamera camera;
+        public bool moveAlongSpline = true;
+        [Min(0.05f)] public float moveDuration = 1.2f;
+    }
+
     bool isStartBattle = true;
     public CinemachineCamera introPlayerCam;
     public CinemachineCamera introEnemyCam;
     public CinemachineCamera introZoomOutCam;
     public CinemachineCamera enemyWinCam;
     public CinemachineCamera playerWinCam;
+    public AnimationCameraBinding[] playerWinAnimationCameras;
+    public AnimationCameraBinding[] enemyWinAnimationCameras;
     public CinemachineCamera idleCam;
     [Range(1.2f, 1.8f)] public float resultCameraHoldDuration = 1.5f;
+    [Min(0.05f)] public float defaultWinCameraMoveDuration = 1.2f;
 
     [Header("�ð� ����")]
     public float waitBeforeStart = 3.1f;   // ���� ��� �ð�
@@ -159,14 +171,78 @@ public class CameraManager : MonoBehaviour
 
     public void SwitchCamera(CinemachineCamera targetCam)
     {
-        introPlayerCam.Priority = 10;
-        introEnemyCam.Priority = 10;
-        introZoomOutCam.Priority = 10;
-        enemyWinCam.Priority = 10;
-        playerWinCam.Priority = 10;
-        idleCam.Priority = 10;
+        if (targetCam == null)
+        {
+            return;
+        }
 
-        targetCam.Priority = 20;
+        SetCameraPriority(introPlayerCam, 10);
+        SetCameraPriority(introEnemyCam, 10);
+        SetCameraPriority(introZoomOutCam, 10);
+        SetCameraPriority(enemyWinCam, 10);
+        SetCameraPriority(playerWinCam, 10);
+        SetCameraPriority(idleCam, 10);
+        SetBindingPriorities(playerWinAnimationCameras, 10);
+        SetBindingPriorities(enemyWinAnimationCameras, 10);
+
+        SetCameraPriority(targetCam, 20);
+    }
+
+    public void SwitchWinCamera(bool playerWon, string triggerName)
+    {
+        var bindings = playerWon ? playerWinAnimationCameras : enemyWinAnimationCameras;
+        var fallbackCam = playerWon ? playerWinCam : enemyWinCam;
+        var selectedCam = FindCameraForTrigger(bindings, triggerName, fallbackCam);
+        Debug.Log($"[SwitchWinCamera] playerWon={playerWon}, trigger='{triggerName}', " +
+                  $"selected={(selectedCam != null ? selectedCam.name : "null")}, " +
+                  $"isFallback={selectedCam == fallbackCam}");
+        SwitchCamera(selectedCam);
+    }
+
+    private static CinemachineCamera FindCameraForTrigger(
+        AnimationCameraBinding[] bindings,
+        string triggerName,
+        CinemachineCamera fallbackCam)
+    {
+        if (bindings != null)
+        {
+            for (int i = 0; i < bindings.Length; i++)
+            {
+                var binding = bindings[i];
+                if (binding != null &&
+                    binding.camera != null &&
+                    binding.triggerName == triggerName)
+                {
+                    return binding.camera;
+                }
+            }
+        }
+
+        return fallbackCam;
+    }
+
+    private static void SetBindingPriorities(AnimationCameraBinding[] bindings, int priority)
+    {
+        if (bindings == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < bindings.Length; i++)
+        {
+            if (bindings[i] != null)
+            {
+                SetCameraPriority(bindings[i].camera, priority);
+            }
+        }
+    }
+
+    private static void SetCameraPriority(CinemachineCamera camera, int priority)
+    {
+        if (camera != null)
+        {
+            camera.Priority = priority;
+        }
     }
     public async Task PlayWinCamera()
     {

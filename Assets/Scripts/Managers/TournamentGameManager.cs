@@ -32,6 +32,12 @@ namespace Managers
         private Animator _playerAnimator;
 
         [SerializeField] private Animator _opponentAnimator;
+        [SerializeField] private string[] _playerWinTriggers = { "Win", "Win2", "Win3" };
+        [SerializeField] private string[] _opponentWinTriggers = { "Win" };
+        [SerializeField] private string _playerLoseTrigger = "Lose";
+        [SerializeField] private string _playerDrawTrigger = "Draw";
+        [SerializeField] private string _opponentLoseTrigger = "";
+        [SerializeField] private string _opponentDrawTrigger = "";
 
         // HitFlash, ImpactVFX는 캐릭터 오브젝트에 붙여두면 런타임에 자동 탐색
         [SerializeField] private GameObject _playerCanvas;
@@ -54,6 +60,8 @@ namespace Managers
         [SerializeField] private GameObject _cameraCanvas;
         [SerializeField] private Transform _tyrannoHandCam;
         [SerializeField] private Transform _chickenHandCam;
+        [SerializeField, Range(0.7f, 0.99f)] private float _handPoseFreezeNormalizedTime = 0.98f;
+        [SerializeField, Min(0f)] private float _handPoseFreezeDuration = 3f;
 
         [Header("Camera & Settings")] [SerializeField]
         private CameraManager _camController;
@@ -69,6 +77,8 @@ namespace Managers
         [SerializeField, Min(0.5f)] private float _countdownStepDuration = 2.4f;
         [SerializeField, Range(0f, 1f)] private float _countdownGapDuration = 0.5f;
         [SerializeField, Range(0f, 1f)] private float _paperAdvanceDuration = 0.8f;
+        [Tooltip("\"보\" 표시 길이 배율 (0.5 = 절반). 보 뒤 말풍선(Background)도 함께 줄어듭니다.")]
+        [SerializeField, Range(0.1f, 1f)] private float _paperDurationScale = 0.5f;
 
         [Header("Hit Effects")]
         [SerializeField, Range(0.03f, 0.15f)] private float _hitStopDuration = 0.07f;
@@ -86,6 +96,20 @@ namespace Managers
         private bool _canInput;
         private bool _roundInProgress;
         private bool _isCountingDown;
+
+        private readonly struct BattleAnimationSelection
+        {
+            public BattleAnimationSelection(bool hasWinner, bool playerWon, string winnerTrigger)
+            {
+                HasWinner = hasWinner;
+                PlayerWon = playerWon;
+                WinnerTrigger = winnerTrigger;
+            }
+
+            public bool HasWinner { get; }
+            public bool PlayerWon { get; }
+            public string WinnerTrigger { get; }
+        }
 
         #endregion
 
@@ -403,8 +427,8 @@ namespace Managers
                     _roundStartUIPaper.transform,
                     new Vector3(1.2f, 1.2f, 1f),
                     new Vector3(1.8f, 1.8f, 1.5f),
-                    _countdownStepDuration,
-                    0.5f,
+                    _countdownStepDuration * _paperDurationScale,
+                    0.5f * _paperDurationScale,
                     cancellationToken
                 );
             }
@@ -482,22 +506,7 @@ namespace Managers
                 SetBattleUIVisible(false);
                 await _camController.MoveToResultPosition();
 
-                // 카메라 도착 후 손 애니메이션 트리거
-                PlayHandAnimation(_playerAnimator, playerHand);
-                PlayHandAnimation(_opponentAnimator, opponentHand);
-
-                // HandCam RawImage 표시
-                ApplyHandCamPositions();
-                if (_cameraCanvas != null)
-                    _cameraCanvas.SetActive(true);
-
-                // RawImage 표시 시간 (3초)
-                await UniTask.Delay((int)(_rawImageDisplayTime * 1000f), cancellationToken: cancellationToken);
-
-                // HandCam 끄기
-                RestoreHandCamFollow();
-                if (_cameraCanvas != null)
-                    _cameraCanvas.SetActive(false);
+                await ShowHandResultPreview(playerHand, opponentHand, cancellationToken);
                 HideRPSSelectUI();
                 SetBattleUIVisible(true);
 
@@ -518,22 +527,7 @@ namespace Managers
             SetBattleUIVisible(false);
             await _camController.MoveToResultPosition();
 
-            // 카메라 도착 후 손 애니메이션 트리거
-            PlayHandAnimation(_playerAnimator, playerHand);
-            PlayHandAnimation(_opponentAnimator, opponentHand);
-
-            // HandCam RawImage 표시 (카메라 이동 후)
-            ApplyHandCamPositions();
-            if (_cameraCanvas != null)
-                _cameraCanvas.SetActive(true);
-
-            // RawImage 표시 시간 (3초)
-            await UniTask.Delay((int)(_rawImageDisplayTime * 1000f), cancellationToken: cancellationToken);
-
-            // HandCam RawImage 숨기기 (승리모션 전에 꺼야 함)
-            RestoreHandCamFollow();
-            if (_cameraCanvas != null)
-                _cameraCanvas.SetActive(false);
+            await ShowHandResultPreview(playerHand, opponentHand, cancellationToken);
 
             SetBattleUIVisible(true);
 
@@ -549,7 +543,12 @@ namespace Managers
             // === 배틀 애니메이션 재생 (Win/Lose 모션) ===
             int playerStateHashBeforeBattle = GetCurrentStateHash(_playerAnimator);
             int opponentStateHashBeforeBattle = GetCurrentStateHash(_opponentAnimator);
-            PlayBattleAnimations(result);
+            var battleAnimation = PlayBattleAnimations(result);
+            if (battleAnimation.HasWinner && _camController != null)
+            {
+                _camController.RestoreCinemachine();
+                _camController.SwitchWinCamera(battleAnimation.PlayerWon, battleAnimation.WinnerTrigger);
+            }
 
             if (_uiManager != null)
             {
@@ -616,7 +615,7 @@ namespace Managers
             {
                 var follow = _tyrannoHandCam.GetComponent<HandPreviewFollow>();
                 if (follow != null) follow.enabled = false;
-                _tyrannoHandCam.position = new Vector3(-3.658f, 2.232f, 1.201f);
+                _tyrannoHandCam.position = new Vector3(-3.858f, 2.232f, 1.201f);
                 _tyrannoHandCam.rotation = Quaternion.Euler(0f, 90f, 0f);
             }
             if (_chickenHandCam != null)
@@ -639,6 +638,125 @@ namespace Managers
             {
                 var follow = _chickenHandCam.GetComponent<HandPreviewFollow>();
                 if (follow != null) follow.enabled = true;
+            }
+        }
+
+        private async UniTask ShowHandResultPreview(
+            HandType playerHand,
+            HandType opponentHand,
+            CancellationToken cancellationToken)
+        {
+            int playerStateHashBeforeHand = GetCurrentStateHash(_playerAnimator);
+            int opponentStateHashBeforeHand = GetCurrentStateHash(_opponentAnimator);
+
+            PlayHandAnimation(_playerAnimator, playerHand);
+            PlayHandAnimation(_opponentAnimator, opponentHand);
+
+            ApplyHandCamPositions();
+            if (_cameraCanvas != null)
+                _cameraCanvas.SetActive(true);
+
+            try
+            {
+                await UniTask.WhenAll(
+                    HoldHandPoseAtEndAsync(
+                        playerStateHashBeforeHand,
+                        opponentStateHashBeforeHand,
+                        cancellationToken),
+                    UniTask.Delay((int)(_rawImageDisplayTime * 1000f), cancellationToken: cancellationToken)
+                );
+            }
+            finally
+            {
+                RestoreHandCamFollow();
+                if (_cameraCanvas != null)
+                    _cameraCanvas.SetActive(false);
+            }
+        }
+
+        private async UniTask HoldHandPoseAtEndAsync(
+            int playerPreviousStateHash,
+            int opponentPreviousStateHash,
+            CancellationToken cancellationToken)
+        {
+            if (_handPoseFreezeDuration <= 0f)
+            {
+                return;
+            }
+
+            float playerSpeed = _playerAnimator != null ? _playerAnimator.speed : 1f;
+            float opponentSpeed = _opponentAnimator != null ? _opponentAnimator.speed : 1f;
+
+            try
+            {
+                await UniTask.WhenAll(
+                    FreezeAnimatorAtHandPoseEndAsync(_playerAnimator, playerPreviousStateHash, cancellationToken),
+                    FreezeAnimatorAtHandPoseEndAsync(_opponentAnimator, opponentPreviousStateHash, cancellationToken)
+                );
+
+                await UniTask.Delay((int)(_handPoseFreezeDuration * 1000f), cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                if (_playerAnimator != null)
+                    _playerAnimator.speed = playerSpeed;
+
+                if (_opponentAnimator != null)
+                    _opponentAnimator.speed = opponentSpeed;
+            }
+        }
+
+        private async UniTask FreezeAnimatorAtHandPoseEndAsync(
+            Animator animator,
+            int previousStateHash,
+            CancellationToken cancellationToken)
+        {
+            if (animator == null)
+            {
+                return;
+            }
+
+            float waitForEnterTimeout = 1.5f;
+            float waitForEndTimeout = Mathf.Max(1f, _rawImageDisplayTime);
+            float elapsed = 0f;
+            int handStateHash = 0;
+
+            while (elapsed < waitForEnterTimeout)
+            {
+                AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
+                if (stateInfo.fullPathHash != previousStateHash)
+                {
+                    handStateHash = stateInfo.fullPathHash;
+                    break;
+                }
+
+                elapsed += Time.deltaTime;
+                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+            }
+
+            if (handStateHash == 0)
+            {
+                return;
+            }
+
+            elapsed = 0f;
+            while (elapsed < waitForEndTimeout)
+            {
+                AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
+                if (stateInfo.fullPathHash != handStateHash)
+                {
+                    return;
+                }
+
+                if (animator.IsInTransition(AnimationLayerIndex) ||
+                    stateInfo.normalizedTime >= _handPoseFreezeNormalizedTime)
+                {
+                    animator.speed = 0f;
+                    return;
+                }
+
+                elapsed += Time.deltaTime;
+                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
             }
         }
 
@@ -779,22 +897,23 @@ namespace Managers
             }
         }
 
-        private void PlayBattleAnimations(GameResult result)
+        private BattleAnimationSelection PlayBattleAnimations(GameResult result)
         {
             if (_playerAnimator != null)
             {
                 switch (result)
                 {
                     case GameResult.Win:
-                        var playerWinIndex = Random.Range(0, 3);
-                        var playerWinTrigger = playerWinIndex == 0 ? "Win" : playerWinIndex == 1 ? "Win2" : "Win3";
+                        string playerWinTrigger = GetRandomTrigger(_playerWinTriggers, "Win");
                         _playerAnimator.SetTrigger(playerWinTrigger);
-                        break;
+                        if (_opponentAnimator != null)
+                            SetTriggerIfConfigured(_opponentAnimator, _opponentLoseTrigger);
+                        return new BattleAnimationSelection(true, true, playerWinTrigger);
                     case GameResult.Lose:
-                        _playerAnimator.SetTrigger("Lose");
+                        SetTriggerIfConfigured(_playerAnimator, _playerLoseTrigger);
                         break;
                     case GameResult.Draw:
-                        _playerAnimator.SetTrigger("Draw");
+                        SetTriggerIfConfigured(_playerAnimator, _playerDrawTrigger);
                         break;
                 }
             }
@@ -805,19 +924,38 @@ namespace Managers
                 {
                     case GameResult.Win:
                         Debug.LogError("[Tyranno] SetTrigger: Lose");
-                        _opponentAnimator.SetTrigger("Lose");
                         break;
                     case GameResult.Lose:
-                        var opponentWinIndex = Random.Range(0, 3);
-                        var opponentWinTrigger = opponentWinIndex == 0 ? "Win" : opponentWinIndex == 1 ? "Win2" : "Win3";
+                        string opponentWinTrigger = GetRandomTrigger(_opponentWinTriggers, "Win");
                         Debug.LogError($"[Tyranno] SetTrigger: {opponentWinTrigger}");
                         _opponentAnimator.SetTrigger(opponentWinTrigger);
-                        break;
+                        return new BattleAnimationSelection(true, false, opponentWinTrigger);
                     case GameResult.Draw:
                         Debug.LogError("[Tyranno] SetTrigger: Draw");
-                        _opponentAnimator.SetTrigger("Draw");
+                        SetTriggerIfConfigured(_opponentAnimator, _opponentDrawTrigger);
                         break;
                 }
+            }
+
+            return new BattleAnimationSelection(false, false, string.Empty);
+        }
+
+        private static string GetRandomTrigger(string[] triggers, string fallback)
+        {
+            if (triggers == null || triggers.Length == 0)
+            {
+                return fallback;
+            }
+
+            string trigger = triggers[Random.Range(0, triggers.Length)];
+            return string.IsNullOrWhiteSpace(trigger) ? fallback : trigger;
+        }
+
+        private static void SetTriggerIfConfigured(Animator animator, string triggerName)
+        {
+            if (animator != null && !string.IsNullOrWhiteSpace(triggerName))
+            {
+                animator.SetTrigger(triggerName);
             }
         }
 
