@@ -4,6 +4,7 @@ using Core.Data;
 using Core.Enums;
 using Core.Interfaces;
 using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using Gameplay;
 using TMPro;
 using UnityEngine;
@@ -97,6 +98,11 @@ namespace Managers
         private bool _roundInProgress;
         private bool _isCountingDown;
 
+        // 씬에 배치된 QWE 아이콘의 원래 스케일 (고정값 대신 이 값을 기준으로 사용)
+        private Vector3 _rpsRockOriginalScale = Vector3.one;
+        private Vector3 _rpsPaperOriginalScale = Vector3.one;
+        private Vector3 _rpsScissorsOriginalScale = Vector3.one;
+
         private readonly struct BattleAnimationSelection
         {
             public BattleAnimationSelection(bool hasWinner, bool playerWon, string winnerTrigger)
@@ -145,6 +151,26 @@ namespace Managers
                 if (_uiManager == null)
                     Debug.LogError("[TournamentGameManager] UIManager not found. Assign it in the Inspector.", this);
             }
+
+            CaptureRPSOriginalScales();
+        }
+
+        private void CaptureRPSOriginalScales()
+        {
+            if (_rpsRockImage != null) _rpsRockOriginalScale = _rpsRockImage.rectTransform.localScale;
+            if (_rpsPaperImage != null) _rpsPaperOriginalScale = _rpsPaperImage.rectTransform.localScale;
+            if (_rpsScissorsImage != null) _rpsScissorsOriginalScale = _rpsScissorsImage.rectTransform.localScale;
+        }
+
+        private Vector3 GetRPSOriginalScale(HandType hand)
+        {
+            return hand switch
+            {
+                HandType.Rock => _rpsRockOriginalScale,
+                HandType.Paper => _rpsPaperOriginalScale,
+                HandType.Scissors => _rpsScissorsOriginalScale,
+                _ => Vector3.one
+            };
         }
 
         #endregion
@@ -191,8 +217,10 @@ namespace Managers
                 _opponentCanvas.gameObject.SetActive(true);
             }
 
-            var animationDuration = 2f;
-            var meetTime = 1f;
+            // 캐릭터 두 개가 닿을 때까지 걸리는 시간은 빠르게(2f→1f),
+            // 줄인 만큼(1f)은 닿은 뒤 대기 시간에 보태서 전체 길이는 유지
+            var animationDuration = 1f;
+            var meetTime = 2f;
             var fadeOutTime = 0.5f;
 
             var elapsedTime = 0f;
@@ -380,6 +408,7 @@ namespace Managers
             }
 
             HighlightRPSSelection(_selectedHand.Value);
+            PlayRPSSelectionPop(_selectedHand.Value);
             await ProcessRound(_selectedHand.Value, cancellationToken);
 
             _selectedHand = null;
@@ -1090,22 +1119,48 @@ namespace Managers
 
             if (targetImage != null)
             {
+                // 선택 중에는 색만 바꾸고 스케일은 원래대로 유지 (팝은 확정 시에만)
                 targetImage.color = _selectedColor;
-                targetImage.rectTransform.localScale = new Vector3(1.12f, 1.12f, 1f);
             }
+        }
+
+        /// <summary>
+        /// 선택이 최종 확정됐을 때만 해당 아이콘을 원래 스케일의 1.2배로 팝 했다가 원래대로 복귀
+        /// </summary>
+        private void PlayRPSSelectionPop(HandType handType)
+        {
+            var targetImage = handType switch
+            {
+                HandType.Rock => _rpsRockImage,
+                HandType.Paper => _rpsPaperImage,
+                HandType.Scissors => _rpsScissorsImage,
+                _ => null
+            };
+
+            if (targetImage == null) return;
+
+            var rt = targetImage.rectTransform;
+            var originalScale = GetRPSOriginalScale(handType);
+            rt.DOKill();
+            rt.localScale = originalScale;
+            rt.DOScale(originalScale * 1.2f, 0.12f).SetLoops(2, LoopType.Yoyo);
         }
 
 
         private void ResetRPSColors()
         {
-            if (_rpsRockImage != null) _rpsRockImage.color = _defaultColor;
-            if (_rpsPaperImage != null) _rpsPaperImage.color = _defaultColor;
-            if (_rpsScissorsImage != null) _rpsScissorsImage.color = _defaultColor;
+            // 색만 기본으로, 스케일은 씬에 배치된 원래 값으로 복원 (고정값 사용 안 함)
+            ResetRPSImage(_rpsRockImage, _rpsRockOriginalScale);
+            ResetRPSImage(_rpsPaperImage, _rpsPaperOriginalScale);
+            ResetRPSImage(_rpsScissorsImage, _rpsScissorsOriginalScale);
+        }
 
-            // 스케일 복원
-            if (_rpsRockImage != null) _rpsRockImage.rectTransform.localScale = Vector3.one;
-            if (_rpsPaperImage != null) _rpsPaperImage.rectTransform.localScale = Vector3.one;
-            if (_rpsScissorsImage != null) _rpsScissorsImage.rectTransform.localScale = Vector3.one;
+        private void ResetRPSImage(Image image, Vector3 originalScale)
+        {
+            if (image == null) return;
+            image.color = _defaultColor;
+            image.rectTransform.DOKill();
+            image.rectTransform.localScale = originalScale;
         }
 
         /// <summary>
@@ -1118,8 +1173,6 @@ namespace Managers
 
             Color winGlow = new Color(0.3f, 1f, 0.3f, 1f);
             Color loseGray = new Color(0.4f, 0.4f, 0.4f, 1f);
-            Vector3 winScale = new Vector3(1.3f, 1.3f, 1f);
-            Vector3 loseScale = new Vector3(0.8f, 0.8f, 1f);
 
             var selectedImage = _selectedHand.Value switch
             {
@@ -1131,15 +1184,20 @@ namespace Managers
 
             if (selectedImage == null) return;
 
+            // 원래 스케일 기준으로 승/패 강조 (이긴 손 확대, 진 손 축소)
+            var originalScale = GetRPSOriginalScale(_selectedHand.Value);
+            var rt = selectedImage.rectTransform;
+            rt.DOKill();
+
             if (result == GameResult.Win)
             {
                 selectedImage.color = winGlow;
-                selectedImage.rectTransform.localScale = winScale;
+                rt.localScale = originalScale * 1.3f;
             }
             else if (result == GameResult.Lose)
             {
                 selectedImage.color = loseGray;
-                selectedImage.rectTransform.localScale = loseScale;
+                rt.localScale = originalScale * 0.8f;
             }
         }
 
