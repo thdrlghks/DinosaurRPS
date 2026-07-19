@@ -39,6 +39,12 @@ namespace Managers
         [SerializeField] private string _playerDrawTrigger = "Draw";
         [SerializeField] private string _opponentLoseTrigger = "";
         [SerializeField] private string _opponentDrawTrigger = "";
+        [Tooltip("가위바위보 승리 춤을 출 때 티라노의 월드 Y 좌표")]
+        [SerializeField] private float _tyrannoWinDanceY = 7f;
+        [Tooltip("티라노와 승리 카메라가 시상대처럼 올라가는 시간")]
+        [SerializeField, Min(0.1f)] private float _tyrannoWinRiseDuration = 1.8f;
+        [Tooltip("상승 카메라가 바라볼 티라노 루트 기준 Y 오프셋")]
+        [SerializeField] private float _tyrannoWinCameraLookOffsetY = 2.5f;
 
         // HitFlash, ImpactVFX는 캐릭터 오브젝트에 붙여두면 런타임에 자동 탐색
         [SerializeField] private GameObject _playerCanvas;
@@ -85,6 +91,20 @@ namespace Managers
         [SerializeField, Range(0.03f, 0.15f)] private float _hitStopDuration = 0.07f;
         [SerializeField, Range(0.5f, 2f)] private float _shakeMultiplier = 1f;
 
+        [Header("Chicken Final Defeat")]
+        [Tooltip("최종 패배 시 닭이 올라갈 로컬 Y 높이")]
+        [SerializeField, Min(0f)] private float _chickenDefeatHeight = 3f;
+        [Tooltip("닭이 위로 날아가는 시간")]
+        [SerializeField, Min(0.05f)] private float _chickenDefeatRiseDuration = 0.65f;
+        [Tooltip("닭이 바닥으로 떨어지는 시간")]
+        [SerializeField, Min(0.05f)] private float _chickenDefeatFallDuration = 0.45f;
+        [Tooltip("착지할 닭의 로컬 Y 좌표")]
+        [SerializeField] private float _chickenDefeatLandingY = 0f;
+        [Tooltip("날아가며 추가할 로컬 Z 회전값")]
+        [SerializeField, Range(-180f, 0f)] private float _chickenDefeatZRotation = -90f;
+        [Tooltip("티라노 춤 종료 후 전장 전체 샷으로 이동하는 시간")]
+        [SerializeField, Min(0.1f)] private float _chickenDefeatWideShotDuration = 1.4f;
+
         [Header("Tutorial - Sealed Hands (첫 라운드만 적용)")]
         [SerializeField] private List<HandType> _sealedHands = new();
         [SerializeField] private TMP_Text _sealedWarningText;
@@ -97,6 +117,8 @@ namespace Managers
         private bool _canInput;
         private bool _roundInProgress;
         private bool _isCountingDown;
+        private Vector3 _tyrannoOriginalPosition;
+        private bool _hasTyrannoOriginalPosition;
 
         // 씬에 배치된 QWE 아이콘의 원래 스케일 (고정값 대신 이 값을 기준으로 사용)
         private Vector3 _rpsRockOriginalScale = Vector3.one;
@@ -150,6 +172,12 @@ namespace Managers
                 _uiManager = FindObjectOfType<UIManager>();
                 if (_uiManager == null)
                     Debug.LogError("[TournamentGameManager] UIManager not found. Assign it in the Inspector.", this);
+            }
+
+            if (_playerAnimator != null)
+            {
+                _tyrannoOriginalPosition = _playerAnimator.transform.position;
+                _hasTyrannoOriginalPosition = true;
             }
 
             CaptureRPSOriginalScales();
@@ -572,8 +600,25 @@ namespace Managers
             // === 배틀 애니메이션 재생 (Win/Lose 모션) ===
             int playerStateHashBeforeBattle = GetCurrentStateHash(_playerAnimator);
             int opponentStateHashBeforeBattle = GetCurrentStateHash(_opponentAnimator);
-            var battleAnimation = PlayBattleAnimations(result);
-            if (battleAnimation.HasWinner && _camController != null)
+            string playerWinTrigger = result == GameResult.Win
+                ? GetRandomTrigger(_playerWinTriggers, "Win")
+                : null;
+
+            if (result == GameResult.Win)
+            {
+                if (_camController != null)
+                {
+                    _camController.RestoreCinemachine();
+                    _camController.SwitchWinCamera(true, playerWinTrigger);
+                    await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate, cancellationToken);
+                }
+
+                await RaiseTyrannoWithCamera(cancellationToken);
+            }
+
+            var battleAnimation = PlayBattleAnimations(result, playerWinTrigger);
+            bool isChickenFinalDefeat = IsChickenFinalDefeat(result);
+            if (battleAnimation.HasWinner && _camController != null && result != GameResult.Win)
             {
                 _camController.RestoreCinemachine();
                 _camController.SwitchWinCamera(battleAnimation.PlayerWon, battleAnimation.WinnerTrigger);
@@ -599,7 +644,32 @@ namespace Managers
             CheckHalfHealthStagger(result);
 
             // === 댄스 애니메이션이 끝날 때까지 대기한 후 HP 감소 ===
-            await WaitForBattleAnimationsToFinish(playerStateHashBeforeBattle, opponentStateHashBeforeBattle, cancellationToken);
+            if (isChickenFinalDefeat)
+            {
+                // 티라노의 승리 춤이 완전히 끝난 다음 전장 전체 샷으로 빠진다.
+                await WaitForBattleAnimationsToFinish(
+                    playerStateHashBeforeBattle,
+                    opponentStateHashBeforeBattle,
+                    cancellationToken);
+                await MoveCameraToBattlefieldWideShot(cancellationToken);
+
+                // 전체 전장이 보이는 상태에서 닭이 날아가 바닥에 고꾸라진다.
+                await PlayChickenFinalDefeat(cancellationToken);
+
+                // 씬이 전환될 때까지 쓰러진 포즈가 다시 Idle로 돌아가지 않게 유지한다.
+                if (_opponentAnimator != null)
+                {
+                    _opponentAnimator.speed = 0f;
+                }
+            }
+            else
+            {
+                await WaitForBattleAnimationsToFinish(
+                    playerStateHashBeforeBattle,
+                    opponentStateHashBeforeBattle,
+                    cancellationToken);
+            }
+
             UpdateHealthBars();
 
             // === 카메라 복귀: Cinemachine 다시 활성화 ===
@@ -614,7 +684,7 @@ namespace Managers
             }
 
             // === 사망 체크 (Enemy HP <= 0) ===
-            bool isDeathRound = CheckDeathAnimation(result);
+            bool isDeathRound = CheckDeathAnimation(result) || isChickenFinalDefeat;
             if (isDeathRound)
             {
                 // TODO: 실제 Death/Fall 애니메이션 길이에 맞춰 조정
@@ -623,7 +693,11 @@ namespace Managers
 
             await UniTask.Delay((int)(_resultDisplayTime * 1000f), cancellationToken: cancellationToken);
 
-            ResetAnimations();
+            if (!isDeathRound)
+            {
+                ResetAnimations();
+            }
+
             UpdateUI();
             if (_matchData.IsMatchOver())
             {
@@ -877,6 +951,208 @@ namespace Managers
             return false;
         }
 
+        private bool IsChickenFinalDefeat(GameResult result)
+        {
+            return result == GameResult.Win
+                   && _matchData.IsMatchOver()
+                   && _matchData.GetWinner() == GameResult.Win;
+        }
+
+        private async UniTask PlayChickenFinalDefeat(CancellationToken cancellationToken)
+        {
+            if (_opponentAnimator == null)
+            {
+                return;
+            }
+
+            Transform chicken = _opponentAnimator.transform;
+            Vector3 startPosition = chicken.localPosition;
+            Vector3 peakPosition = new Vector3(
+                startPosition.x,
+                _chickenDefeatLandingY + _chickenDefeatHeight,
+                startPosition.z);
+            Vector3 landingPosition = new Vector3(
+                startPosition.x,
+                _chickenDefeatLandingY,
+                startPosition.z);
+
+            Quaternion startRotation = chicken.localRotation;
+            Quaternion fallenRotation =
+                startRotation * Quaternion.Euler(0f, 0f, _chickenDefeatZRotation);
+
+            await AnimateChickenTransform(
+                chicken,
+                startPosition,
+                peakPosition,
+                startRotation,
+                fallenRotation,
+                _chickenDefeatRiseDuration,
+                true,
+                cancellationToken);
+
+            await AnimateChickenTransform(
+                chicken,
+                peakPosition,
+                landingPosition,
+                fallenRotation,
+                fallenRotation,
+                _chickenDefeatFallDuration,
+                false,
+                cancellationToken);
+
+            chicken.localPosition = landingPosition;
+            chicken.localRotation = fallenRotation;
+        }
+
+        private async UniTask RaiseTyrannoWithCamera(CancellationToken cancellationToken)
+        {
+            if (_playerAnimator == null)
+            {
+                return;
+            }
+
+            Transform tyranno = _playerAnimator.transform;
+            Vector3 tyrannoStartPosition = tyranno.position;
+            Vector3 tyrannoTargetPosition = tyrannoStartPosition;
+            tyrannoTargetPosition.y = _tyrannoWinDanceY;
+
+            Camera mainCamera = Camera.main;
+            Vector3 cameraStartPosition = mainCamera != null
+                ? mainCamera.transform.position
+                : Vector3.zero;
+            Vector3 cameraTargetPosition = cameraStartPosition
+                                           + Vector3.up
+                                           * (tyrannoTargetPosition.y - tyrannoStartPosition.y);
+
+            if (mainCamera != null)
+            {
+                var brain = mainCamera.GetComponent<Unity.Cinemachine.CinemachineBrain>();
+                if (brain != null)
+                {
+                    brain.enabled = false;
+                }
+            }
+
+            float elapsed = 0f;
+            while (elapsed < _tyrannoWinRiseDuration)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                elapsed += Time.deltaTime;
+                float normalizedTime = Mathf.Clamp01(elapsed / _tyrannoWinRiseDuration);
+                float easedTime = Mathf.SmoothStep(0f, 1f, normalizedTime);
+
+                tyranno.position = Vector3.LerpUnclamped(
+                    tyrannoStartPosition,
+                    tyrannoTargetPosition,
+                    easedTime);
+
+                if (mainCamera != null)
+                {
+                    mainCamera.transform.position = Vector3.LerpUnclamped(
+                        cameraStartPosition,
+                        cameraTargetPosition,
+                        easedTime);
+
+                    Vector3 lookTarget =
+                        tyranno.position + Vector3.up * _tyrannoWinCameraLookOffsetY;
+                    Vector3 lookDirection = lookTarget - mainCamera.transform.position;
+                    if (lookDirection.sqrMagnitude > 0.0001f)
+                    {
+                        mainCamera.transform.rotation = Quaternion.LookRotation(
+                            lookDirection,
+                            Vector3.up);
+                    }
+                }
+
+                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+            }
+
+            tyranno.position = tyrannoTargetPosition;
+        }
+
+        private async UniTask MoveCameraToBattlefieldWideShot(
+            CancellationToken cancellationToken)
+        {
+            Camera mainCamera = Camera.main;
+            if (mainCamera == null || _camController == null || _camController.idleCam == null)
+            {
+                return;
+            }
+
+            // 상승 연출에서 수동 제어 중인 Main Camera를 전장 전체용 IdleCam 위치로 이동한다.
+            var brain = mainCamera.GetComponent<Unity.Cinemachine.CinemachineBrain>();
+            if (brain != null)
+            {
+                brain.enabled = false;
+            }
+
+            Vector3 startPosition = mainCamera.transform.position;
+            Quaternion startRotation = mainCamera.transform.rotation;
+            Vector3 targetPosition = _camController.idleCam.transform.position;
+            Quaternion targetRotation = _camController.idleCam.transform.rotation;
+
+            float elapsed = 0f;
+            while (elapsed < _chickenDefeatWideShotDuration)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                elapsed += Time.deltaTime;
+                float normalizedTime =
+                    Mathf.Clamp01(elapsed / _chickenDefeatWideShotDuration);
+                float easedTime = Mathf.SmoothStep(0f, 1f, normalizedTime);
+
+                mainCamera.transform.position = Vector3.LerpUnclamped(
+                    startPosition,
+                    targetPosition,
+                    easedTime);
+                mainCamera.transform.rotation = Quaternion.SlerpUnclamped(
+                    startRotation,
+                    targetRotation,
+                    easedTime);
+
+                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+            }
+
+            mainCamera.transform.position = targetPosition;
+            mainCamera.transform.rotation = targetRotation;
+        }
+
+        private static async UniTask AnimateChickenTransform(
+            Transform chicken,
+            Vector3 fromPosition,
+            Vector3 toPosition,
+            Quaternion fromRotation,
+            Quaternion toRotation,
+            float duration,
+            bool easeOut,
+            CancellationToken cancellationToken)
+        {
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                elapsed += Time.deltaTime;
+                float normalizedTime = Mathf.Clamp01(elapsed / duration);
+                float easedTime = easeOut
+                    ? 1f - Mathf.Pow(1f - normalizedTime, 2f)
+                    : normalizedTime * normalizedTime;
+
+                chicken.localPosition = Vector3.LerpUnclamped(
+                    fromPosition,
+                    toPosition,
+                    easedTime);
+                chicken.localRotation = Quaternion.SlerpUnclamped(
+                    fromRotation,
+                    toRotation,
+                    easedTime);
+
+                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+            }
+        }
+
         #endregion
 
         private void UpdateUI()
@@ -926,14 +1202,18 @@ namespace Managers
             }
         }
 
-        private BattleAnimationSelection PlayBattleAnimations(GameResult result)
+        private BattleAnimationSelection PlayBattleAnimations(
+            GameResult result,
+            string configuredPlayerWinTrigger = null)
         {
             if (_playerAnimator != null)
             {
                 switch (result)
                 {
                     case GameResult.Win:
-                        string playerWinTrigger = GetRandomTrigger(_playerWinTriggers, "Win");
+                        string playerWinTrigger = string.IsNullOrWhiteSpace(configuredPlayerWinTrigger)
+                            ? GetRandomTrigger(_playerWinTriggers, "Win")
+                            : configuredPlayerWinTrigger;
                         _playerAnimator.SetTrigger(playerWinTrigger);
                         if (_opponentAnimator != null)
                             SetTriggerIfConfigured(_opponentAnimator, _opponentLoseTrigger);
@@ -1222,6 +1502,11 @@ namespace Managers
             if (_playerAnimator != null)
             {
                 ResetAllTriggers(_playerAnimator);
+                if (_hasTyrannoOriginalPosition)
+                {
+                    _playerAnimator.transform.position = _tyrannoOriginalPosition;
+                }
+
                 _playerAnimator.CrossFadeInFixedTime("Idle", _idleBlendDuration, 0);
             }
 

@@ -20,6 +20,10 @@ namespace Managers
         [SerializeField] private Image _skipButton;
         [SerializeField] private bool _showButtonAfterVideo = true;
 
+        [Header("Loading Cover")]
+        [Tooltip("영상이 준비되기 전 씬을 가려줄 풀스크린 검은 이미지")]
+        [SerializeField] private Image _loadingCover;
+
         private bool _hasTransitioned = false;
 
         private void Start()
@@ -29,11 +33,20 @@ namespace Managers
                 _videoPlayer = GetComponent<VideoPlayer>();
             }
 
+            // 준비되기 전 씬이 보이지 않도록 먼저 덮는다.
+            if (_loadingCover != null)
+                _loadingCover.gameObject.SetActive(true);
+
             if (_videoPlayer != null)
             {
                 _videoPlayer.loopPointReached += OnVideoEnd;
-                _videoPlayer.Play();
-                Debug.Log("Start Video");
+
+                // 첫 프레임 디코딩 대기 후 재생 -> 씬 노출(플래시) 방지
+                _videoPlayer.playOnAwake = false;
+                _videoPlayer.waitForFirstFrame = true;
+                _videoPlayer.prepareCompleted += OnVideoPrepared;
+                _videoPlayer.Prepare();
+                Debug.Log("Prepare Video");
             }
             else
             {
@@ -50,6 +63,17 @@ namespace Managers
                 entry.callback.AddListener(_ => SkipVideo());
                 trigger.triggers.Add(entry);
             }
+        }
+
+        private void OnVideoPrepared(VideoPlayer vp)
+        {
+            // 첫 프레임까지 준비 완료 -> 재생 시작하고 가림막 제거
+            vp.Play();
+
+            if (_loadingCover != null)
+                _loadingCover.gameObject.SetActive(false);
+
+            Debug.Log("Start Video");
         }
 
         private void OnVideoEnd(VideoPlayer vp)
@@ -100,6 +124,7 @@ namespace Managers
             if (_videoPlayer != null)
             {
                 _videoPlayer.loopPointReached -= OnVideoEnd;
+                _videoPlayer.prepareCompleted -= OnVideoPrepared;
             }
 
             if (_skipButton != null)
