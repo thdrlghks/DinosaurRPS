@@ -67,5 +67,5 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "DinosaurRPS_Github.slnx"
+    "dotnet.defaultSolution": "DinosaurRPS.slnx"
 }
