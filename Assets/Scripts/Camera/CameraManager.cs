@@ -30,10 +30,11 @@ public class CameraManager : MonoBehaviour
 
     [Header("�ð� ����")]
     public float waitBeforeStart = 3.1f;   // ���� ��� �ð�
-    public float introDuration = 3.0f;    // �� ��Ʈ�� �̵� �ð�
+    public float introDuration = 2.0f;    // �� ��Ʈ�� �̵� �ð�
     public float zoomOutDuration = 2.5f;  // �ܾƿ� ���� �ð�
 
     public float holdBeforeZoomOut = 0f;
+
 
     public CameraShake cameraShake;
 
@@ -52,6 +53,8 @@ public class CameraManager : MonoBehaviour
     [Range(0f, 10f)] public float zoomOutPullFOV = 4f;
 
     private Camera _mainCamera;
+
+    private float waitTime = 0.8f;
 
     void Start()
     {
@@ -72,10 +75,12 @@ public class CameraManager : MonoBehaviour
         // 2. �÷��̾� ī�޶� ��Ʈ��
         cameraShake.StartDinoSteps(introPlayerCam);
         yield return StartCoroutine(MoveAlongSpline (introPlayerCam, introDuration));
+        yield return new WaitForSeconds(waitTime);
 
         // 3. �� ī�޶� ��Ʈ��
         cameraShake.StartDinoSteps(introEnemyCam);
         yield return StartCoroutine(MoveAlongSpline(introEnemyCam, introDuration));
+        yield return new WaitForSeconds(waitTime);
 
         // 4. �߾� �ܾƿ� ���� + �ü� ���߱�
         SwitchCamera(introZoomOutCam);
@@ -305,58 +310,7 @@ public class CameraManager : MonoBehaviour
             _isMovingToResult = false;
         }
     }
-
-    /// <summary>
-    /// 페이드 아웃 → 카메라 전환 → 페이드 인 (부드러운 전환)
-    /// </summary>
-    public void SwitchCameraWithFade(CinemachineCamera targetCam)
-    {
-        StartCoroutine(FadeSwitchCoroutine(targetCam));
-    }
-
-    IEnumerator FadeSwitchCoroutine(CinemachineCamera targetCam)
-    {
-        // Fade out (검은색으로)
-        yield return StartCoroutine(FadeCoroutine(0f, 1f, fadeDuration));
-
-        // 카메라 전환
-        SwitchCamera(targetCam);
-
-        // 1프레임 대기 (Cinemachine 전환 적용)
-        yield return null;
-
-        // Fade in (투명으로)
-        yield return StartCoroutine(FadeCoroutine(1f, 0f, fadeDuration));
-    }
-
-    IEnumerator FadeCoroutine(float from, float to, float duration)
-    {
-        if (fadeOverlay == null) yield break;
-
-        fadeOverlay.gameObject.SetActive(true);
-        float elapsed = 0f;
-
-        while (elapsed < duration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            float t = elapsed / duration;
-            float alpha = Mathf.Lerp(from, to, t);
-
-            Color c = fadeOverlay.color;
-            c.a = alpha;
-            fadeOverlay.color = c;
-
-            yield return null;
-        }
-
-        Color final_c = fadeOverlay.color;
-        final_c.a = to;
-        fadeOverlay.color = final_c;
-
-        // 완전 투명이면 비활성화
-        if (to <= 0f)
-            fadeOverlay.gameObject.SetActive(false);
-    }
+    
 
     /// <summary>
     /// Cinemachine Brain을 다시 활성화하여 가상 카메라 제어로 복귀
@@ -372,7 +326,6 @@ public class CameraManager : MonoBehaviour
     {
         await Task.Delay(100);
 
-        // 3. ��Ʈ�� �ڷ�ƾ ����
         StopAllCoroutines();
         StartCoroutine(PlayFullIntroSequence());
     }
