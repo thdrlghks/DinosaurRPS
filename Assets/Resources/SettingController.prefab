@@ -58,7 +58,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 320daa42678a03643a7f02e3783348da, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SFXManager
-  sfxSources: []
-  winSound: {fileID: 8300000, guid: 01adea5f6cdc9f543b1b76edb2f9cd84, type: 3}
-  rpsSound: {fileID: 8300000, guid: 6291226f03ede1640831fc68106b7990, type: 3}
-  fightSound: {fileID: 8300000, guid: 6291226f03ede1640831fc68106b7990, type: 3}
+  _entries:
+  - id: 3
+    clips:
+    - {fileID: 8300000, guid: 55575b05e3aff3c4190932029b9faea3, type: 3}
+    volume: 1
+    pitchRange: {x: 1, y: 1}
+  - id: 6
+    clips:
+    - {fileID: 8300000, guid: 215d3bf97932f4643b3a919f870ae02a, type: 3}
+    volume: 1
+    pitchRange: {x: 1, y: 1}
+  _initialSourceCount: 8
+  _bgmSource: {fileID: 0}
+  _bgmVolume: 0.6
+  _bgmFadeDuration: 1

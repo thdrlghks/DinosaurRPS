@@ -5,6 +5,7 @@ using Core.Enums;
 using Core.Interfaces;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
+using DigitalRuby.LightningBolt;
 using Gameplay;
 using TMPro;
 using UnityEngine;
@@ -56,6 +57,21 @@ namespace Managers
         [SerializeField] private GameObject _roundStartUIPaper;
         [SerializeField] private GameObject _roundStartUIScissors;
         [SerializeField] private GameObject _balloon;
+
+        [Header("Round Start Lightning")]
+        [SerializeField] private LightningBoltScript _roundStartLightning;
+        [SerializeField, Min(0.05f)] private float _roundStartLightningDuration = 0.45f;
+        [SerializeField, Min(0.01f)] private float _roundStartLightningPulseInterval = 0.07f;
+
+        [Tooltip("번개 전용 카메라. 번개가 나오는 순간에만 켜진다 (1920x1080 RT라 상시 렌더링하면 비싸다).")]
+        [SerializeField] private Camera _roundStartLightningCamera;
+
+        [Tooltip("번개 RenderTexture를 화면에 합성하는 RawImage 오브젝트.")]
+        [SerializeField] private GameObject _roundStartLightningView;
+
+        [Header("Audio")]
+        [Tooltip("승/패 사운드를 모션 종료 시점에 끊을 때의 페이드아웃 길이. 0이면 즉시 정지.")]
+        [SerializeField, Min(0f)] private float _resultSfxFadeOutDuration = 0.35f;
 
         [Header("RPS Select UI")]
         [SerializeField] private GameObject _rpsSelectCanvas;
@@ -120,6 +136,10 @@ namespace Managers
         private Vector3 _tyrannoOriginalPosition;
         private bool _hasTyrannoOriginalPosition;
 
+        // 손 클로즈업 카메라 캐시 (Awake에서 1회 탐색)
+        private Camera _tyrannoHandCamera;
+        private Camera _chickenHandCamera;
+
         // 씬에 배치된 QWE 아이콘의 원래 스케일 (고정값 대신 이 값을 기준으로 사용)
         private Vector3 _rpsRockOriginalScale = Vector3.one;
         private Vector3 _rpsPaperOriginalScale = Vector3.one;
@@ -180,7 +200,47 @@ namespace Managers
                 _hasTyrannoOriginalPosition = true;
             }
 
+            if (_tyrannoHandCam != null) _tyrannoHandCamera = _tyrannoHandCam.GetComponent<Camera>();
+            if (_chickenHandCam != null) _chickenHandCamera = _chickenHandCam.GetComponent<Camera>();
+
+            // 씬에서 꺼둔 상태를 시작 기준으로 삼는다. 손 공개 구간에만 켜진다.
+            SetHandCamerasEnabled(false);
+            SetRoundStartLightningVisible(false);
+
             CaptureRPSOriginalScales();
+        }
+
+        /// <summary>
+        /// 효과음 재생. 인스펙터 참조가 비어 있어도 싱글턴으로 폴백한다.
+        /// </summary>
+        private void PlaySfx(SfxId id, float volumeScale = 1f)
+        {
+            var sfx = _sfxManager != null ? _sfxManager : SFXManager.Instance;
+            if (sfx != null) sfx.Play(id, volumeScale);
+        }
+
+        /// <summary>클립이 연출보다 짧을 때 반복 재생. 반드시 StopSfx로 끊어줘야 한다.</summary>
+        private void PlayLoopSfx(SfxId id, float volumeScale = 1f)
+        {
+            var sfx = _sfxManager != null ? _sfxManager : SFXManager.Instance;
+            if (sfx != null) sfx.PlayLoop(id, volumeScale);
+        }
+
+        private void StopSfx(SfxId id, float fadeDuration = 0.15f)
+        {
+            var sfx = _sfxManager != null ? _sfxManager : SFXManager.Instance;
+            if (sfx != null) sfx.Stop(id, fadeDuration);
+        }
+
+        /// <summary>
+        /// 승/패/무 사운드를 끊는다. 승리 팡파레(13.5초)가 댄스보다 길어서
+        /// 모션이 끝나는 시점에 잘라내지 않으면 다음 라운드까지 넘어간다.
+        /// </summary>
+        private void StopResultSfx()
+        {
+            StopSfx(SfxId.RoundWin, _resultSfxFadeOutDuration);
+            StopSfx(SfxId.RoundLose, _resultSfxFadeOutDuration);
+            StopSfx(SfxId.RoundDraw, _resultSfxFadeOutDuration);
         }
 
         private void CaptureRPSOriginalScales()
@@ -266,6 +326,10 @@ namespace Managers
                 await UniTask.Yield();
             }
 
+            // Both intro panels have reached the center. Play the impact lightning now,
+            // while the existing meet-time pause keeps the VS composition on screen.
+            PlayRoundStartLightning(this.GetCancellationTokenOnDestroy()).Forget();
+
             await UniTask.Delay((int)(meetTime * 1000));
 
             var playerGraphics = _playerCanvas.GetComponentsInChildren<Graphic>(includeInactive: true);
@@ -297,6 +361,55 @@ namespace Managers
             // 알파/색상 복구 (다음번 인트로 재사용용)
             RestoreColors(playerGraphics, playerOriginal);
             RestoreColors(opponentGraphics, opponentOriginal);
+        }
+
+        private async UniTask PlayRoundStartLightning(CancellationToken cancellationToken)
+        {
+            if (_roundStartLightning == null)
+            {
+                Debug.LogWarning("[TournamentGameManager] Round-start lightning is not assigned.", this);
+                return;
+            }
+
+            _roundStartLightning.ManualMode = true;
+            _roundStartLightning.Duration = Mathf.Max(
+                _roundStartLightning.Duration,
+                _roundStartLightningPulseInterval * 0.9f);
+
+            // 번개 카메라는 1920x1080 RenderTexture를 매 프레임 그린다.
+            // 이 0.45초 동안만 켜고, 끝나면 카메라와 합성용 RawImage를 함께 끈다.
+            SetRoundStartLightningVisible(true);
+            try
+            {
+                float elapsed = 0f;
+                do
+                {
+                    _roundStartLightning.Trigger();
+                    await UniTask.Delay(
+                        Mathf.Max(1, Mathf.RoundToInt(_roundStartLightningPulseInterval * 1000f)),
+                        cancellationToken: cancellationToken);
+                    elapsed += _roundStartLightningPulseInterval;
+                }
+                while (elapsed < _roundStartLightningDuration);
+            }
+            finally
+            {
+                SetRoundStartLightningVisible(false);
+            }
+        }
+
+        /// <summary>
+        /// 번개 전용 카메라와 RawImage를 함께 토글한다.
+        /// RawImage만 끄면 카메라가 계속 RT를 렌더링하고,
+        /// 카메라만 끄면 RT에 마지막 번개 프레임이 그대로 남는다.
+        /// </summary>
+        private void SetRoundStartLightningVisible(bool visible)
+        {
+            if (_roundStartLightningCamera != null)
+                _roundStartLightningCamera.enabled = visible;
+
+            if (_roundStartLightningView != null)
+                _roundStartLightningView.SetActive(visible);
         }
 
         private void SetAlpha(Graphic[] graphics, float a)
@@ -375,6 +488,7 @@ namespace Managers
             _warningCts?.Cancel();
             _warningCts = new CancellationTokenSource();
 
+            PlaySfx(SfxId.HandSealed);
             _sealedWarningText.text = message;
             _sealedWarningText.gameObject.SetActive(true);
             HideSealedWarningAfterDelay(_warningCts.Token).Forget();
@@ -393,6 +507,7 @@ namespace Managers
             if (!_isCountingDown && !_canInput) return;
 
             _selectedHand = handType;
+            PlaySfx(SfxId.HandSelect);
             HighlightRPSSelection(handType);
         }
 
@@ -448,6 +563,21 @@ namespace Managers
         #region ExecuteCountdownAnimations
 
         private async UniTask ExecuteCountdownAnimations(CancellationToken cancellationToken)
+        {
+            // 구호 클립(2.59초)이 카운트다운 UI(약 5.5초)보다 짧아서 일단 반복으로 채운다.
+            // 취소로 빠져나가도 소리가 남지 않도록 finally에서 반드시 끊는다.
+            PlayLoopSfx(SfxId.CountdownChant);
+            try
+            {
+                await RunCountdownSequence(cancellationToken);
+            }
+            finally
+            {
+                StopSfx(SfxId.CountdownChant);
+            }
+        }
+
+        private async UniTask RunCountdownSequence(CancellationToken cancellationToken)
         {
             if (_roundStartUIScissors)
             {
@@ -630,6 +760,8 @@ namespace Managers
             }
 
             // === 히트스톱 + 카메라 쉐이크 + 히트플래시 + VFX (타격감) ===
+            // 타격음은 히트스톱과 같은 프레임에 나가야 한다. AudioSource는 timeScale의 영향을 받지 않는다.
+            PlaySfx(SfxId.Impact);
             HitStop.Instance.Play(_hitStopDuration);
             if (_camController != null && _camController.cameraShake != null)
             {
@@ -651,6 +783,7 @@ namespace Managers
                     playerStateHashBeforeBattle,
                     opponentStateHashBeforeBattle,
                     cancellationToken);
+                StopResultSfx();
                 await MoveCameraToBattlefieldWideShot(cancellationToken);
 
                 // 전체 전장이 보이는 상태에서 닭이 날아가 바닥에 고꾸라진다.
@@ -668,6 +801,7 @@ namespace Managers
                     playerStateHashBeforeBattle,
                     opponentStateHashBeforeBattle,
                     cancellationToken);
+                StopResultSfx();
             }
 
             UpdateHealthBars();
@@ -744,6 +878,16 @@ namespace Managers
             }
         }
 
+        /// <summary>
+        /// 손 클로즈업 카메라 2대를 토글한다. 이 둘은 각각 독립된 Base 카메라라
+        /// 켜져 있는 동안 씬을 통째로 한 번씩 더 렌더링한다. 손 공개 구간에만 켠다.
+        /// </summary>
+        private void SetHandCamerasEnabled(bool enabled)
+        {
+            if (_tyrannoHandCamera != null) _tyrannoHandCamera.enabled = enabled;
+            if (_chickenHandCamera != null) _chickenHandCamera.enabled = enabled;
+        }
+
         private async UniTask ShowHandResultPreview(
             HandType playerHand,
             HandType opponentHand,
@@ -752,10 +896,12 @@ namespace Managers
             int playerStateHashBeforeHand = GetCurrentStateHash(_playerAnimator);
             int opponentStateHashBeforeHand = GetCurrentStateHash(_opponentAnimator);
 
+            PlaySfx(SfxId.HandReveal);
             PlayHandAnimation(_playerAnimator, playerHand);
             PlayHandAnimation(_opponentAnimator, opponentHand);
 
             ApplyHandCamPositions();
+            SetHandCamerasEnabled(true);
             if (_cameraCanvas != null)
                 _cameraCanvas.SetActive(true);
 
@@ -772,6 +918,7 @@ namespace Managers
             finally
             {
                 RestoreHandCamFollow();
+                SetHandCamerasEnabled(false);
                 if (_cameraCanvas != null)
                     _cameraCanvas.SetActive(false);
             }
@@ -965,6 +1112,8 @@ namespace Managers
                 return;
             }
 
+            PlaySfx(SfxId.ChickenDefeat);
+
             Transform chicken = _opponentAnimator.transform;
             Vector3 startPosition = chicken.localPosition;
             Vector3 peakPosition = new Vector3(
@@ -1010,6 +1159,8 @@ namespace Managers
             {
                 return;
             }
+
+            PlaySfx(SfxId.TyrannoRise);
 
             Transform tyranno = _playerAnimator.transform;
             Vector3 tyrannoStartPosition = tyranno.position;
@@ -1206,6 +1357,14 @@ namespace Managers
             GameResult result,
             string configuredPlayerWinTrigger = null)
         {
+            // 승/패/무 사운드는 결과 문구가 아니라 실제 모션이 터지는 이 시점에 맞춘다.
+            PlaySfx(result switch
+            {
+                GameResult.Win => SfxId.RoundWin,
+                GameResult.Lose => SfxId.RoundLose,
+                _ => SfxId.RoundDraw
+            });
+
             if (_playerAnimator != null)
             {
                 switch (result)
@@ -1548,6 +1707,7 @@ namespace Managers
             if (winner.HasValue)
             {
                 BattleHistoryManager.Instance?.CompleteMatch(winner.Value);
+                PlaySfx(winner.Value == GameResult.Win ? SfxId.MatchVictory : SfxId.MatchDefeat);
             }
 
             await UniTask.Delay(2000, cancellationToken: cancellationToken);

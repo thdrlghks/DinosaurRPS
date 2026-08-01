@@ -268,6 +268,11 @@ namespace Managers
             _targetPlayerFill = newPlayerFill;
             _targetOpponentFill = newOpponentFill;
 
+            if ((playerTookDamage || opponentTookDamage) && SFXManager.Instance != null)
+            {
+                SFXManager.Instance.Play(SfxId.HealthDamage);
+            }
+
             if (playerTookDamage)
             {
                 TriggerHealthFlash(
