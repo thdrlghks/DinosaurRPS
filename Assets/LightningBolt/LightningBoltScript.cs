@@ -81,6 +81,9 @@ namespace DigitalRuby.LightningBolt
         [Tooltip("The animation mode for the lightning")]
         public LightningBoltAnimationMode AnimationMode = LightningBoltAnimationMode.PingPong;
 
+        [Tooltip("이 번개를 비추는 카메라. 비워두면 Camera.main을 쓴다. 한 번만 조회해 캐싱한다.")]
+        public Camera RenderCamera;
+
         /// <summary>
         /// Assign your own random if you want to have the same lightning appearance
         /// </summary>
@@ -286,17 +289,39 @@ namespace DigitalRuby.LightningBolt
             SelectOffsetFromAnimationMode();
         }
 
-        private void Start()
+        private bool initialized;
+
+        /// <summary>
+        /// 원본은 Start()에서만 초기화했지만, 이 컴포넌트는 평소 비활성 상태로 두었다가
+        /// 연출 순간에만 켠다. Unity는 활성화 다음 프레임에 Start()를 부르므로
+        /// 켠 직후 Trigger()가 먼저 들어오면 lineRenderer가 null이 된다. 그래서 지연 초기화로 바꿨다.
+        /// </summary>
+        private void EnsureInitialized()
         {
-            orthographic = (Camera.main != null && Camera.main.orthographic);
+            if (initialized)
+            {
+                return;
+            }
+
+            initialized = true;
             lineRenderer = GetComponent<LineRenderer>();
             lineRenderer.positionCount = 0;
+
+            // 원본은 매 프레임 Camera.main을 조회했다. 이건 화면에 아무것도 안 보일 때도
+            // 계속 나가는 비용이라 1회 캐싱으로 바꿨다.
+            Camera cam = RenderCamera != null ? RenderCamera : Camera.main;
+            orthographic = (cam != null && cam.orthographic);
+
             UpdateFromMaterialChange();
+        }
+
+        private void Start()
+        {
+            EnsureInitialized();
         }
 
         private void Update()
         {
-            orthographic = (Camera.main != null && Camera.main.orthographic);
             if (timer <= 0.0f)
             {
                 if (ManualMode)
@@ -317,6 +342,8 @@ namespace DigitalRuby.LightningBolt
         /// </summary>
         public void Trigger()
         {
+            EnsureInitialized();
+
             Vector3 start, end;
             timer = Duration + Mathf.Min(0.0f, timer);
             if (StartObject == null)

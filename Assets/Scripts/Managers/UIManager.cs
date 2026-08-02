@@ -127,23 +127,22 @@ namespace Managers
 
         private void AnimateHealthBars()
         {
-            if (_playerHealthBar != null)
-            {
-                _playerHealthBar.fillAmount = Mathf.MoveTowards(
-                    _playerHealthBar.fillAmount,
-                    _targetPlayerFill,
-                    Time.deltaTime * _healthBarAnimationSpeed
-                );
-            }
+            MoveFillTowards(_playerHealthBar, _targetPlayerFill, _healthBarAnimationSpeed);
+            MoveFillTowards(_opponentHealthBar, _targetOpponentFill, _healthBarAnimationSpeed);
+        }
 
-            if (_opponentHealthBar != null)
-            {
-                _opponentHealthBar.fillAmount = Mathf.MoveTowards(
-                    _opponentHealthBar.fillAmount,
-                    _targetOpponentFill,
-                    Time.deltaTime * _healthBarAnimationSpeed
-                );
-            }
+        /// <summary>
+        /// fillAmount는 대입할 때마다 해당 Image가 dirty로 표시되어 Canvas 배치/메시가 다시 계산된다.
+        /// 목표값에 도달한 뒤에도 매 프레임 같은 값을 쓰면 그 비용이 계속 나가므로, 변할 때만 쓴다.
+        /// </summary>
+        private static void MoveFillTowards(Image image, float target, float speed)
+        {
+            if (image == null) return;
+
+            float current = image.fillAmount;
+            if (Mathf.Approximately(current, target)) return;
+
+            image.fillAmount = Mathf.MoveTowards(current, target, Time.deltaTime * speed);
         }
 
         /// <summary>
@@ -152,38 +151,24 @@ namespace Managers
         private void AnimateHealthTrails()
         {
             // Player trail
-            if (_playerHealthTrail != null)
+            if (_playerHealthTrail != null && _trailPlayerFill > _targetPlayerFill)
             {
-                if (_trailPlayerFill > _targetPlayerFill)
+                _trailPlayerTimer += Time.deltaTime;
+                if (_trailPlayerTimer >= _trailDelay)
                 {
-                    _trailPlayerTimer += Time.deltaTime;
-                    if (_trailPlayerTimer >= _trailDelay)
-                    {
-                        _playerHealthTrail.fillAmount = Mathf.MoveTowards(
-                            _playerHealthTrail.fillAmount,
-                            _targetPlayerFill,
-                            Time.deltaTime * _trailSpeed
-                        );
-                        _trailPlayerFill = _playerHealthTrail.fillAmount;
-                    }
+                    MoveFillTowards(_playerHealthTrail, _targetPlayerFill, _trailSpeed);
+                    _trailPlayerFill = _playerHealthTrail.fillAmount;
                 }
             }
 
             // Opponent trail
-            if (_opponentHealthTrail != null)
+            if (_opponentHealthTrail != null && _trailOpponentFill > _targetOpponentFill)
             {
-                if (_trailOpponentFill > _targetOpponentFill)
+                _trailOpponentTimer += Time.deltaTime;
+                if (_trailOpponentTimer >= _trailDelay)
                 {
-                    _trailOpponentTimer += Time.deltaTime;
-                    if (_trailOpponentTimer >= _trailDelay)
-                    {
-                        _opponentHealthTrail.fillAmount = Mathf.MoveTowards(
-                            _opponentHealthTrail.fillAmount,
-                            _targetOpponentFill,
-                            Time.deltaTime * _trailSpeed
-                        );
-                        _trailOpponentFill = _opponentHealthTrail.fillAmount;
-                    }
+                    MoveFillTowards(_opponentHealthTrail, _targetOpponentFill, _trailSpeed);
+                    _trailOpponentFill = _opponentHealthTrail.fillAmount;
                 }
             }
         }

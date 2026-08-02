@@ -203,6 +203,11 @@ namespace Managers
             if (_tyrannoHandCam != null) _tyrannoHandCamera = _tyrannoHandCam.GetComponent<Camera>();
             if (_chickenHandCam != null) _chickenHandCamera = _chickenHandCam.GetComponent<Camera>();
 
+            // 번개를 비추는 건 전용 직교 카메라다. 이걸 알려주지 않으면
+            // LightningBoltScript가 Camera.main(원근)을 기준으로 삼아 번개가 3D로 흩어진다.
+            if (_roundStartLightning != null && _roundStartLightningCamera != null)
+                _roundStartLightning.RenderCamera = _roundStartLightningCamera;
+
             // 씬에서 꺼둔 상태를 시작 기준으로 삼는다. 손 공개 구간에만 켜진다.
             SetHandCamerasEnabled(false);
             SetRoundStartLightningVisible(false);
@@ -410,6 +415,10 @@ namespace Managers
 
             if (_roundStartLightningView != null)
                 _roundStartLightningView.SetActive(visible);
+
+            // 번개 스크립트도 같이 끈다. 켜 두면 안 보이는 동안에도 Update가 계속 돈다.
+            if (_roundStartLightning != null)
+                _roundStartLightning.enabled = visible;
         }
 
         private void SetAlpha(Graphic[] graphics, float a)
