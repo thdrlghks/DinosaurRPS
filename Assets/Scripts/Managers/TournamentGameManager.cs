@@ -793,9 +793,21 @@ namespace Managers
                     opponentStateHashBeforeBattle,
                     cancellationToken);
                 StopResultSfx();
-                await MoveCameraToBattlefieldWideShot(cancellationToken);
 
-                // 전체 전장이 보이는 상태에서 닭이 날아가 바닥에 고꾸라진다.
+                // 닭이 돌아갈 기본 위치 저장
+                Transform chicken = _opponentAnimator.transform;
+                Vector3 defaultPosition = chicken.localPosition;
+                Quaternion defaultRotation = chicken.localRotation;
+
+                // 정면에서 꼭대기까지만 떠오름
+                await MoveCameraToChickenFront(cancellationToken);
+                await PlayChickenDefeatHalfway(cancellationToken);
+
+                // 사이드캠 상태에서 닭이 날아가 바닥에 고꾸라진다.
+                _camController.RestoreCinemachine();
+                _camController.SwitchCamera(_camController.sideCam);
+                chicken.localPosition = defaultPosition;
+                chicken.localRotation = defaultRotation;
                 await PlayChickenFinalDefeat(cancellationToken);
 
                 // 씬이 전환될 때까지 쓰러진 포즈가 다시 Idle로 돌아가지 않게 유지한다.
@@ -1114,6 +1126,41 @@ namespace Managers
                    && _matchData.GetWinner() == GameResult.Win;
         }
 
+        // 정면 샷에서 공중으로 뜰 때까지만 보여줄 함수
+        private async UniTask PlayChickenDefeatHalfway(CancellationToken cancellationToken)
+        {
+            if (_opponentAnimator == null) return;
+
+            PlaySfx(SfxId.ChickenDefeat); // 타격음 재생
+
+            Transform chicken = _opponentAnimator.transform;
+            Vector3 startPosition = chicken.localPosition;
+            float backwardOffset = -5f; // Z축으로 날아가도록 수정하신 부분
+
+            // 최고점까지만 계산
+            Vector3 peakPosition = new Vector3(
+                startPosition.x,
+                _chickenDefeatLandingY + _chickenDefeatHeight,
+                startPosition.z + (backwardOffset * 0.5f));
+
+            Quaternion startRotation = chicken.localRotation;
+            Quaternion fallenRotation =
+                startRotation * Quaternion.Euler(0f, 0f, _chickenDefeatZRotation);
+
+            // 공중으로 뜨는 애니메이션 1개만 실행!
+            await AnimateChickenTransform(
+                chicken,
+                startPosition,
+                peakPosition,
+                startRotation,
+                fallenRotation,
+                _chickenDefeatRiseDuration,
+                true,
+                cancellationToken);
+
+            // 떨어지는 코드는 빼버립니다. 여기서 끝!
+        }
+
         private async UniTask PlayChickenFinalDefeat(CancellationToken cancellationToken)
         {
             if (_opponentAnimator == null)
@@ -1125,14 +1172,20 @@ namespace Managers
 
             Transform chicken = _opponentAnimator.transform;
             Vector3 startPosition = chicken.localPosition;
+
+            float backwardOffset = -5f;
+
+            // 최고점: 높이는 원래대로, X축으로는 목표 지점의 절반만큼 이동
             Vector3 peakPosition = new Vector3(
                 startPosition.x,
                 _chickenDefeatLandingY + _chickenDefeatHeight,
-                startPosition.z);
+                startPosition.z + (backwardOffset * 0.5f));
+
+            // 착지점: X축으로 목표 지점만큼 완전히 이동
             Vector3 landingPosition = new Vector3(
                 startPosition.x,
                 _chickenDefeatLandingY,
-                startPosition.z);
+                startPosition.z + backwardOffset);
 
             Quaternion startRotation = chicken.localRotation;
             Quaternion fallenRotation =
@@ -1161,7 +1214,7 @@ namespace Managers
             chicken.localPosition = landingPosition;
             chicken.localRotation = fallenRotation;
         }
-
+            
         private async UniTask RaiseTyrannoWithCamera(CancellationToken cancellationToken)
         {
             if (_playerAnimator == null)
@@ -1231,7 +1284,7 @@ namespace Managers
             tyranno.position = tyrannoTargetPosition;
         }
 
-        private async UniTask MoveCameraToBattlefieldWideShot(
+        private async UniTask MoveCameraToChickenFront(
             CancellationToken cancellationToken)
         {
             Camera mainCamera = Camera.main;
@@ -1249,8 +1302,8 @@ namespace Managers
 
             Vector3 startPosition = mainCamera.transform.position;
             Quaternion startRotation = mainCamera.transform.rotation;
-            Vector3 targetPosition = _camController.idleCam.transform.position;
-            Quaternion targetRotation = _camController.idleCam.transform.rotation;
+            Vector3 targetPosition = _camController.frontCam.transform.position;
+            Quaternion targetRotation = _camController.frontCam.transform.rotation;
 
             float elapsed = 0f;
             while (elapsed < _chickenDefeatWideShotDuration)

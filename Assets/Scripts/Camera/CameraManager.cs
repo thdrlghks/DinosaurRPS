@@ -25,6 +25,8 @@ public class CameraManager : MonoBehaviour
     public AnimationCameraBinding[] playerWinAnimationCameras;
     public AnimationCameraBinding[] enemyWinAnimationCameras;
     public CinemachineCamera idleCam;
+    public CinemachineCamera frontCam;
+    public CinemachineCamera sideCam;
     [Range(1.2f, 1.8f)] public float resultCameraHoldDuration = 1.5f;
     [Min(0.05f)] public float defaultWinCameraMoveDuration = 1.2f;
 
@@ -65,86 +67,28 @@ public class CameraManager : MonoBehaviour
 
     IEnumerator PlayFullIntroSequence()
     {
-        // 1. ���� 3�� ���
+        // 1. start
         if (isStartBattle)
         {
             yield return new WaitForSeconds(waitBeforeStart);
             isStartBattle=false;
         }
 
-        // 2. �÷��̾� ī�޶� ��Ʈ��
+        // 2. player
         cameraShake.StartDinoSteps(introPlayerCam);
         yield return StartCoroutine(MoveAlongSpline (introPlayerCam, introDuration));
         yield return new WaitForSeconds(waitTime);
 
-        // 3. �� ī�޶� ��Ʈ��
+        // 3. enemy
         cameraShake.StartDinoSteps(introEnemyCam);
         yield return StartCoroutine(MoveAlongSpline(introEnemyCam, introDuration));
         yield return new WaitForSeconds(waitTime);
 
-        // 4. �߾� �ܾƿ� ���� + �ü� ���߱�
+        // 4. paper zoom out
         SwitchCamera(introZoomOutCam);
-        if (holdBeforeZoomOut > 0f)
-        {
-            yield return new WaitForSeconds(holdBeforeZoomOut);
-        }
-
-        // ������ ���� ������Ʈ ��������
-        var composer = introZoomOutCam.GetComponent<CinemachineRotationComposer>();
-        var splineDolly = introZoomOutCam.GetComponent<CinemachineSplineDolly>();
-        var settings = introZoomOutCam.GetComponent<CameraMoveSettings>();
-        float elapsed = 0f;
-
-        // FOV 풀-푸시: 시작 시 살짝 넓혀두고(뒤로 빠진 느낌) → 줌아웃 동안 원래대로 좁혀옴(앞으로 오는 느낌)
-        float originalFOV = introZoomOutCam.Lens.FieldOfView;
-        if (zoomOutPullFOV > 0f)
-        {
-            var lens = introZoomOutCam.Lens;
-            lens.FieldOfView = originalFOV + zoomOutPullFOV;
-            introZoomOutCam.Lens = lens;
-        }
-
-        while (elapsed < zoomOutDuration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / zoomOutDuration;
-            float progress = settings?.moveCurve.Evaluate(t) ?? t;
-
-            // B. �ü� ���߱� (0���� -1.5f�� ���� ������)
-            if (composer != null)
-            {
-                composer.TargetOffset.y = Mathf.Lerp(0f, -7f, progress);
-            }
-            // C. ���ö��� �̵� �߰� (0���� 1�� �̵�)
-            if (splineDolly != null)
-            {
-                splineDolly.CameraPosition = progress;
-            }
-            // D. FOV: 넓힌 상태 → 원래대로 천천히 좁혀옴 (앞으로 밀려오는 느낌)
-            if (zoomOutPullFOV > 0f)
-            {
-                var lens = introZoomOutCam.Lens;
-                lens.FieldOfView = Mathf.Lerp(originalFOV + zoomOutPullFOV, originalFOV, progress);
-                introZoomOutCam.Lens = lens;
-            }
-            yield return null;
-        }
-
-        // FOV 복구
-        if (zoomOutPullFOV > 0f)
-        {
-            var lens = introZoomOutCam.Lens;
-            lens.FieldOfView = originalFOV;
-            introZoomOutCam.Lens = lens;
-        }
-
-        //yield return new WaitForSeconds(zoomOutDuration);
-
-        // 5. ���� Idle ����
-        //SwitchCamera(idleCam);
+        
     }
 
-    // Spline �̵��� ó���ϴ� ���� �ڷ�ƾ
     IEnumerator MoveAlongSpline(CinemachineCamera cam, float duration)
     {
         SwitchCamera(cam);
@@ -187,6 +131,8 @@ public class CameraManager : MonoBehaviour
         SetCameraPriority(enemyWinCam, 10);
         SetCameraPriority(playerWinCam, 10);
         SetCameraPriority(idleCam, 10);
+        SetCameraPriority(frontCam, 10);
+        SetCameraPriority(sideCam, 10);
         SetBindingPriorities(playerWinAnimationCameras, 10);
         SetBindingPriorities(enemyWinAnimationCameras, 10);
 
@@ -268,9 +214,6 @@ public class CameraManager : MonoBehaviour
         await Task.Delay((int)(resultCameraHoldDuration * 1000f));
     }
 
-    /// <summary>
-    /// Cinemachine을 끄고 MainCamera를 결과 좌표로 직접 이동시킴
-    /// </summary>
     private bool _isMovingToResult = false;
 
     public async Task MoveToResultPosition()
@@ -282,7 +225,6 @@ public class CameraManager : MonoBehaviour
         {
             if (_mainCamera == null) _mainCamera = Camera.main;
 
-            // Cinemachine Brain ???? (MainCamera ?? ??? ??)
             var brain = _mainCamera.GetComponent<CinemachineBrain>();
             if (brain != null) brain.enabled = false;
 
@@ -311,17 +253,12 @@ public class CameraManager : MonoBehaviour
         }
     }
     
-
-    /// <summary>
-    /// Cinemachine Brain을 다시 활성화하여 가상 카메라 제어로 복귀
-    /// </summary>
     public void RestoreCinemachine()
     {
         if (_mainCamera == null) _mainCamera = Camera.main;
         var brain = _mainCamera.GetComponent<Unity.Cinemachine.CinemachineBrain>();
         if (brain != null) brain.enabled = true;
     }
-    // ��Ʈ�� ����� �帧
     public async Task RestartSequence()
     {
         await Task.Delay(100);

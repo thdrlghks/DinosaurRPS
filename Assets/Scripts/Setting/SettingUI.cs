@@ -28,6 +28,13 @@ public class SettingUI : MonoBehaviour
         masterVolumeSlider.value = s.masterVolume;
         effectVolumeSlider.value = s.effectVolume;
         fullScreenToggle.isOn = s.isFullScreen;
+
+        // 3. 세팅창이 켜질 때 게임 내 모든 사운드를 일시정지합니다.
+        AudioListener.pause = true;
+
+        // 만약 VideoPlayer의 소리도 같이 멈추고 싶다면 아래 추가
+        if (videoAudioSource != null && videoAudioSource.isPlaying)
+            videoAudioSource.Pause();
     }
 
     private void Start()
@@ -63,11 +70,21 @@ public class SettingUI : MonoBehaviour
             Screen.fullScreen = val;
         });
     }
+
     public void OnClickConfirm()
     {
+        // 확인을 누를 때 설정을 저장합니다.
+        SettingsManager.Instance.SaveSettings();
+
+        // 사운드 일시정지를 해제합니다.
+        AudioListener.pause = false;
+        if (videoAudioSource != null)
+            videoAudioSource.UnPause();
+
         gameObject.SetActive(false); // 창 닫기
         Time.timeScale = 1f;         // 일시정지 해제
     }
+
     public void OnClickCancel()
     {
         var s = SettingsManager.Instance.settings;
@@ -85,8 +102,22 @@ public class SettingUI : MonoBehaviour
 
         Screen.fullScreen = backupIsFullScreen;
 
-        // 3. 창을 닫고 일시정지를 해제합니다.
+        // 3. 취소할 때도 사운드 일시정지를 해제합니다.
+        AudioListener.pause = false;
+        if (videoAudioSource != null)
+            videoAudioSource.UnPause();
+
+        // 4. 창을 닫고 일시정지를 해제합니다.
         gameObject.SetActive(false);
         Time.timeScale = 1f;
+    }
+
+    public void OnClickExitGame()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 }
