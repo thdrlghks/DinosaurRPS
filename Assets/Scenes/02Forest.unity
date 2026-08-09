@@ -1869,12 +1869,20 @@ MonoBehaviour:
   enemyWinCam: {fileID: 64044128}
   playerWinCam: {fileID: 629424599}
   playerWinAnimationCameras:
+  - triggerName: Win
+    camera: {fileID: 629424599}
+    moveAlongSpline: 1
+    moveDuration: 1.2
   - triggerName: Win2
-    camera: {fileID: 0}
+    camera: {fileID: 1944277015}
     moveAlongSpline: 1
     moveDuration: 1.2
   - triggerName: Win3
-    camera: {fileID: 0}
+    camera: {fileID: 903940192}
+    moveAlongSpline: 1
+    moveDuration: 1.2
+  - triggerName: Win4
+    camera: {fileID: 1533798771}
     moveAlongSpline: 1
     moveDuration: 1.2
   enemyWinAnimationCameras: []
@@ -11490,6 +11498,7 @@ MonoBehaviour:
   - Win
   - Win2
   - Win3
+  - Win4
   _opponentWinTriggers:
   - Win
   _playerLoseTrigger: Lose

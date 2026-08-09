@@ -29,8 +29,9 @@ namespace Managers
         [Header("Scene Names")]
         [SerializeField] private string _mainMenuScene = "00MainMenu";
         [SerializeField] private string _startScene = "01Start";
-        [SerializeField] private string _start8Scene = "02Start8";
-        [SerializeField] private string _quarterFinalsScene = "03Forest";  // 8강 전투
+        [Tooltip("8강 시작 애니메이션 씬. 비워두면 이 단계를 건너뛴다.")]
+        [SerializeField] private string _start8Scene = "";
+        [SerializeField] private string _quarterFinalsScene = "02Forest";  // 8강 전투
         [SerializeField] private string _end80Scene = "03End80";
         [SerializeField] private string _end8Scene = "04End8";
         [SerializeField] private string _start4Scene = "05Start4";
@@ -157,11 +158,14 @@ namespace Managers
             yield return LoadSceneAndWait(_startScene);
             yield return new WaitForSeconds(_animationSceneDisplayTime);
 
-            // 02Start8 (8강 시작 애니메이션)
-            yield return LoadSceneAndWait(_start8Scene);
-            yield return new WaitForSeconds(_shortAnimationDisplayTime);
+            // 8강 시작 애니메이션 (씬 이름이 비어 있으면 대기까지 통째로 건너뛴다)
+            if (!string.IsNullOrEmpty(_start8Scene))
+            {
+                yield return LoadSceneAndWait(_start8Scene);
+                yield return new WaitForSeconds(_shortAnimationDisplayTime);
+            }
 
-            // 03Forest (8강 전투)
+            // 8강 전투
             yield return LoadSceneAndWait(_quarterFinalsScene);
         }
 

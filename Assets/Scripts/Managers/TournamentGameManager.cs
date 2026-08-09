@@ -34,7 +34,8 @@ namespace Managers
         private Animator _playerAnimator;
 
         [SerializeField] private Animator _opponentAnimator;
-        [SerializeField] private string[] _playerWinTriggers = { "Win", "Win2", "Win3" };
+        [Tooltip("승리 애니메이션 트리거 목록. 이 중 하나가 균등 확률로 뽑힌다 (4개면 각 25%). Player Win Animation Cameras 의 트리거 이름과 짝을 맞춰야 카메라가 따라간다.")]
+        [SerializeField] private string[] _playerWinTriggers = { "Win", "Win2", "Win3", "Win4" };
         [SerializeField] private string[] _opponentWinTriggers = { "Win" };
         [SerializeField] private string _playerLoseTrigger = "Lose";
         [SerializeField] private string _playerDrawTrigger = "Draw";
@@ -223,6 +224,36 @@ namespace Managers
             var sfx = _sfxManager != null ? _sfxManager : SFXManager.Instance;
             if (sfx != null) sfx.Play(id, volumeScale);
         }
+
+        #region Camera helpers (CameraManager가 없는 씬에서도 라운드가 진행되도록 전부 null 가드)
+
+        private async UniTask MoveCameraToResultAsync()
+        {
+            if (_camController == null) return;
+            await _camController.MoveToResultPosition();
+        }
+
+        private void SwitchToIdleCamera()
+        {
+            if (_camController == null) return;
+            _camController.RestoreCinemachine();
+            _camController.SwitchCamera(_camController.idleCam);
+        }
+
+        private void SwitchToSideCamera()
+        {
+            if (_camController == null) return;
+            _camController.RestoreCinemachine();
+            _camController.SwitchCamera(_camController.sideCam);
+        }
+
+        private async UniTask RestartCameraSequenceAsync()
+        {
+            if (_camController == null) return;
+            await _camController.RestartSequence();
+        }
+
+        #endregion
 
         /// <summary>클립이 연출보다 짧을 때 반복 재생. 반드시 StopSfx로 끊어줘야 한다.</summary>
         private void PlayLoopSfx(SfxId id, float volumeScale = 1f)
@@ -700,28 +731,27 @@ namespace Managers
 
                 // 카메라 캐릭터쪽으로 이동
                 SetBattleUIVisible(false);
-                await _camController.MoveToResultPosition();
+                await MoveCameraToResultAsync();
 
                 await ShowHandResultPreview(playerHand, opponentHand, cancellationToken);
                 HideRPSSelectUI();
                 SetBattleUIVisible(true);
 
                 // 카메라 복귀
-                _camController.RestoreCinemachine();
-                _camController.SwitchCamera(_camController.idleCam);
+                SwitchToIdleCamera();
                 await UniTask.Delay(300, cancellationToken: cancellationToken);
 
                 ResetAnimations();
                 _roundInProgress = false;
                 _canInput = true;
                 StartRound().Forget();
-                await _camController.RestartSequence();
+                await RestartCameraSequenceAsync();
                 return;
             }
 
             // === MainCamera를 결과 좌표로 직접 이동 ===
             SetBattleUIVisible(false);
-            await _camController.MoveToResultPosition();
+            await MoveCameraToResultAsync();
 
             await ShowHandResultPreview(playerHand, opponentHand, cancellationToken);
 
@@ -804,8 +834,7 @@ namespace Managers
                 await PlayChickenDefeatHalfway(cancellationToken);
 
                 // 사이드캠 상태에서 닭이 날아가 바닥에 고꾸라진다.
-                _camController.RestoreCinemachine();
-                _camController.SwitchCamera(_camController.sideCam);
+                SwitchToSideCamera();
                 chicken.localPosition = defaultPosition;
                 chicken.localRotation = defaultRotation;
                 await PlayChickenFinalDefeat(cancellationToken);
@@ -828,8 +857,7 @@ namespace Managers
             UpdateHealthBars();
 
             // === 카메라 복귀: Cinemachine 다시 활성화 ===
-            _camController.RestoreCinemachine();
-            _camController.SwitchCamera(_camController.idleCam);
+            SwitchToIdleCamera();
             await UniTask.Delay(500, cancellationToken: cancellationToken);
 
             // HP 감소 애니메이션 추가 대기
@@ -863,7 +891,7 @@ namespace Managers
                 _roundInProgress = false;
                 _canInput = true;
                 StartRound().Forget();
-                await _camController.RestartSequence();
+                await RestartCameraSequenceAsync();
             }
         }
 
@@ -1288,7 +1316,8 @@ namespace Managers
             CancellationToken cancellationToken)
         {
             Camera mainCamera = Camera.main;
-            if (mainCamera == null || _camController == null || _camController.idleCam == null)
+            // 아래에서 실제로 쓰는 건 frontCam이다. idleCam만 검사하면 frontCam이 비어 있을 때 터진다.
+            if (mainCamera == null || _camController == null || _camController.frontCam == null)
             {
                 return;
             }
@@ -1711,11 +1740,38 @@ namespace Managers
             animator.ResetTrigger("Rock");
             animator.ResetTrigger("Paper");
             animator.ResetTrigger("Scissors");
-            animator.ResetTrigger("Win");
-            animator.ResetTrigger("Win2");
-            animator.ResetTrigger("Win3");
+
+            // 승리 트리거는 인스펙터 배열을 그대로 따라간다.
+            // 예전엔 "Win","Win2","Win3" 를 하드코딩해서, 배열에 항목을 늘려도
+            // 그 트리거가 리셋되지 않고 다음 라운드까지 남았다.
+            ResetTriggers(animator, _playerWinTriggers);
+            ResetTriggers(animator, _opponentWinTriggers);
+
+            ResetTriggerIfConfigured(animator, _playerLoseTrigger);
+            ResetTriggerIfConfigured(animator, _playerDrawTrigger);
+            ResetTriggerIfConfigured(animator, _opponentLoseTrigger);
+            ResetTriggerIfConfigured(animator, _opponentDrawTrigger);
+
             animator.ResetTrigger("Lose");
             animator.ResetTrigger("Draw");
+        }
+
+        private static void ResetTriggers(Animator animator, string[] triggers)
+        {
+            if (triggers == null) return;
+
+            for (int i = 0; i < triggers.Length; i++)
+            {
+                ResetTriggerIfConfigured(animator, triggers[i]);
+            }
+        }
+
+        private static void ResetTriggerIfConfigured(Animator animator, string triggerName)
+        {
+            if (animator != null && !string.IsNullOrWhiteSpace(triggerName))
+            {
+                animator.ResetTrigger(triggerName);
+            }
         }
 
         private void ResetAnimations()

@@ -240,8 +240,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _mainMenuScene: 00MainMenu
   _startScene: 01Start
-  _start8Scene: 02Start8
-  _quarterFinalsScene: 03Forest
+  _start8Scene: 
+  _quarterFinalsScene: 02Forest
   _end80Scene: 03End80
   _end8Scene: 04End8
   _start4Scene: 05Start4
@@ -921,7 +921,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 3ffcacb0cb801554f96632d1d02e7361, type: 2}
+  - {fileID: 2100000, guid: 4123797bbf1c4eb3b16827312da572e3, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1448,7 +1448,7 @@ VideoPlayer:
   m_TargetCameraAlpha: 1
   m_TargetCamera3DLayout: 0
   m_TargetCamera: {fileID: 0}
-  m_TargetTexture: {fileID: 8400000, guid: bd852ebe05861684f87eacc621fda65b, type: 2}
+  m_TargetTexture: {fileID: 8400000, guid: 3427241894644d54aaee06cce58d6b24, type: 2}
   m_TimeReference: 0
   m_TargetMaterialRenderer: {fileID: 0}
   m_TargetMaterialProperty: <noninit>
@@ -2594,7 +2594,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Texture: {fileID: 8400000, guid: bd852ebe05861684f87eacc621fda65b, type: 2}
+  m_Texture: {fileID: 8400000, guid: 3427241894644d54aaee06cce58d6b24, type: 2}
   m_UVRect:
     serializedVersion: 2
     x: 0
