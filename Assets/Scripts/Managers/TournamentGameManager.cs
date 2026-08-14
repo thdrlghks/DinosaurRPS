@@ -766,6 +766,9 @@ namespace Managers
             // === 문구 표시 후 대기 → 그 다음 댄스 ===
             await UniTask.Delay((int)(_resultTextDelay * 1000f), cancellationToken: cancellationToken);
 
+            // 여기부터 승리/패배 연출. 끝날 때까지 전투 UI를 전부 감춘다.
+            HideBattleUIForCinematic();
+
             // === 배틀 애니메이션 재생 (Win/Lose 모션) ===
             int playerStateHashBeforeBattle = GetCurrentStateHash(_playerAnimator);
             int opponentStateHashBeforeBattle = GetCurrentStateHash(_opponentAnimator);
@@ -853,6 +856,10 @@ namespace Managers
                     cancellationToken);
                 StopResultSfx();
             }
+
+            // 연출 끝 → 상시 HUD(체력바 / QWE) 복구.
+            // 카운트다운 UI는 다음 라운드에서 다시 켜지므로 여기서 되살리지 않는다.
+            SetBattleUIVisible(true);
 
             UpdateHealthBars();
 
@@ -1633,6 +1640,25 @@ namespace Managers
 
             if (_rpsSelectCanvas != null)
                 _rpsSelectCanvas.SetActive(isVisible);
+        }
+
+        /// <summary>
+        /// 승리/패배 연출 동안 화면의 전투 UI를 전부 감춘다.
+        /// SetBattleUIVisible 은 체력바와 QWE 아이콘만 다뤄서
+        /// 말풍선·카운트다운·봉인 경고·손 클로즈업이 연출 위에 남아 있었다.
+        /// </summary>
+        private void HideBattleUIForCinematic()
+        {
+            SetBattleUIVisible(false);
+
+            if (_balloon != null) _balloon.SetActive(false);
+            if (_roundStartUIScissors != null) _roundStartUIScissors.SetActive(false);
+            if (_roundStartUIRock != null) _roundStartUIRock.SetActive(false);
+            if (_roundStartUIPaper != null) _roundStartUIPaper.SetActive(false);
+            if (_sealedWarningText != null) _sealedWarningText.gameObject.SetActive(false);
+            if (_cameraCanvas != null) _cameraCanvas.SetActive(false);
+
+            if (_uiManager != null) _uiManager.HideResultUI();
         }
 
         private void HighlightRPSSelection(HandType handType)
