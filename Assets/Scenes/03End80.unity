@@ -619,7 +619,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _videoPlayer: {fileID: 1117141148}
-  _nextSceneName: 04End8
+  _nextSceneName: QuarterFinals
   _allowSkip: 0
   _skipButton: {fileID: 685564813}
   _showButtonAfterVideo: 1

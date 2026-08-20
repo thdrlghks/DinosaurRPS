@@ -8,8 +8,8 @@ namespace Core.Rules
         {
             return stage switch
             {
-                TournamentStage.Qualifiers => 1,
-                TournamentStage.QuarterFinals => 1,
+                TournamentStage.Qualifiers => 1,   // 튜토리얼: 1승이면 종료 (닭 1방)
+                TournamentStage.QuarterFinals => 2, // 8강: 2점제 (체력 2와 일치)
                 TournamentStage.SemiFinals => 2,
                 TournamentStage.Finals => 2,
                 TournamentStage.GrandFinals => 1,

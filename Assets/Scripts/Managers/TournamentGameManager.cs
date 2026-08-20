@@ -84,6 +84,9 @@ namespace Managers
         [SerializeField] private GameObject _cameraCanvas;
         [SerializeField] private Transform _tyrannoHandCam;
         [SerializeField] private Transform _chickenHandCam;
+        [Tooltip("티라노/닭의 가위·바위·보 손모양별 클로즈업 카메라 좌표(위치·회전·FOV) 6종. " +
+                 "TournamentGameManager 인스펙터 하단의 캡처 버튼으로 Play 중 채워 넣는다.")]
+        [SerializeField] private HandCamPoseLibrary _handCamPoses;
         [SerializeField, Range(0.7f, 0.99f)] private float _handPoseFreezeNormalizedTime = 0.98f;
         [SerializeField, Min(0f)] private float _handPoseFreezeDuration = 3f;
 
@@ -201,8 +204,9 @@ namespace Managers
                 _hasTyrannoOriginalPosition = true;
             }
 
-            if (_tyrannoHandCam != null) _tyrannoHandCamera = _tyrannoHandCam.GetComponent<Camera>();
-            if (_chickenHandCam != null) _chickenHandCamera = _chickenHandCam.GetComponent<Camera>();
+            // Camera는 hand-cam 오브젝트 자신이 아니라 자식에 붙어 있다. GetComponent로는 못 찾는다.
+            if (_tyrannoHandCam != null) _tyrannoHandCamera = _tyrannoHandCam.GetComponentInChildren<Camera>(true);
+            if (_chickenHandCam != null) _chickenHandCamera = _chickenHandCam.GetComponentInChildren<Camera>(true);
 
             // 번개를 비추는 건 전용 직교 카메라다. 이걸 알려주지 않으면
             // LightningBoltScript가 Camera.main(원근)을 기준으로 삼아 번개가 3D로 흩어진다.
@@ -694,6 +698,8 @@ namespace Managers
                     GetMaxHealthForStage(_currentStage, true),
                     GetMaxHealthForStage(_currentStage, false)
                 );
+                // 승리 점수 pip 초기화 (모두 기본 이미지 ON)
+                _uiManager.UpdateVictoryScore(_matchData.PlayerWins, _matchData.OpponentWins);
             }
 
             UpdateUI();
@@ -705,8 +711,8 @@ namespace Managers
         {
             return stage switch
             {
-                TournamentStage.Qualifiers => 1,
-                TournamentStage.QuarterFinals => isPlayer ? 999 : 1,
+                TournamentStage.Qualifiers => isPlayer ? 999 : 1,  // 튜토리얼: 플레이어 무적, 닭 1방
+                TournamentStage.QuarterFinals => 2,                // 8강: 2점제
                 TournamentStage.SemiFinals => 2,
                 TournamentStage.Finals => 2,
                 TournamentStage.GrandFinals => 1,
@@ -902,36 +908,63 @@ namespace Managers
             }
         }
 
-        private void ApplyHandCamPositions()
+        private void ApplyHandCamPositions(HandType playerHand, HandType opponentHand)
         {
-            if (_tyrannoHandCam != null)
+            // 티라노 = Player, 닭 = Opponent. 손모양(가위/바위/보)마다 손이 도착하는
+            // 위치가 달라서 캐릭터당 좌표 1개로는 안 된다 → 6종 좌표에서 골라 적용한다.
+            ApplyHandCamPose(_tyrannoHandCam, _tyrannoHandCamera, isTyranno: true, playerHand);
+            ApplyHandCamPose(_chickenHandCam, _chickenHandCamera, isTyranno: false, opponentHand);
+        }
+
+        private void ApplyHandCamPose(Transform camTransform, Camera cam, bool isTyranno, HandType hand)
+        {
+            if (camTransform == null) return;
+
+            // 자동추적(HandPreviewFollow)은 끄고 고정 좌표로 프레이밍한다.
+            // 부모뿐 아니라 자식(카메라)에 붙어 있어도 확실히 꺼지도록 전부 순회한다.
+            // 하나라도 켜져 있으면 LateUpdate가 매 프레임 카메라를 손 위치로 되돌려 버린다.
+            var follows = camTransform.GetComponentsInChildren<HandPreviewFollow>(true);
+            for (int i = 0; i < follows.Length; i++) follows[i].enabled = false;
+
+            // 실제로 화면을 그리는 건 자식 Camera다. 그 Transform을 직접 세팅해야
+            // "카메라로 보이는 구도"가 그대로 저장/복원된다(캡처도 이 Transform을 읽는다).
+            // cam이 없는 예외 상황에서만 부모 Transform으로 폴백한다.
+            Transform target = cam != null ? cam.transform : camTransform;
+
+            string who = isTyranno ? "티라노" : "닭";
+
+            // 라이브러리 미할당이거나 아직 캡처 안 된 손모양이면 기존 고정 좌표로 폴백.
+            // (빈 라이브러리의 원점(0,0,0)으로 카메라가 튀는 것을 막는다.)
+            if (_handCamPoses == null ||
+                !_handCamPoses.TryGetPose(isTyranno, hand, out var pose))
             {
-                var follow = _tyrannoHandCam.GetComponent<HandPreviewFollow>();
-                if (follow != null) follow.enabled = false;
-                _tyrannoHandCam.position = new Vector3(-3.858f, 2.232f, 1.201f);
-                _tyrannoHandCam.rotation = Quaternion.Euler(0f, 90f, 0f);
+                target.position = isTyranno
+                    ? new Vector3(-3.858f, 2.232f, 1.201f)
+                    : new Vector3(-4.632f, 1.468f, -1.245f);
+                target.rotation = Quaternion.Euler(0f, 90f, 0f);
+                Debug.Log($"[HandCam] {who} {hand} → 폴백 좌표 사용 (아직 캡처 안 됨). lib={_handCamPoses != null}", this);
+                return;
             }
-            if (_chickenHandCam != null)
-            {
-                var follow = _chickenHandCam.GetComponent<HandPreviewFollow>();
-                if (follow != null) follow.enabled = false;
-                _chickenHandCam.position = new Vector3(-4.632f, 1.468f, -1.245f);
-                _chickenHandCam.rotation = Quaternion.Euler(0f, 90f, 0f);
-            }
+
+            target.position = pose.position;
+            target.rotation = Quaternion.Euler(pose.eulerAngles);
+            if (cam != null && pose.fieldOfView > 0f)
+                cam.fieldOfView = pose.fieldOfView;
+
+            Debug.Log($"[HandCam] {who} {hand} → 캡처 좌표 적용: target.pos={target.position}, fov={(cam != null ? cam.fieldOfView : -1f)}, follow끔={follows.Length}개", this);
         }
 
         private void RestoreHandCamFollow()
         {
-            if (_tyrannoHandCam != null)
-            {
-                var follow = _tyrannoHandCam.GetComponent<HandPreviewFollow>();
-                if (follow != null) follow.enabled = true;
-            }
-            if (_chickenHandCam != null)
-            {
-                var follow = _chickenHandCam.GetComponent<HandPreviewFollow>();
-                if (follow != null) follow.enabled = true;
-            }
+            RestoreFollowUnder(_tyrannoHandCam);
+            RestoreFollowUnder(_chickenHandCam);
+        }
+
+        private static void RestoreFollowUnder(Transform camTransform)
+        {
+            if (camTransform == null) return;
+            var follows = camTransform.GetComponentsInChildren<HandPreviewFollow>(true);
+            for (int i = 0; i < follows.Length; i++) follows[i].enabled = true;
         }
 
         /// <summary>
@@ -956,7 +989,7 @@ namespace Managers
             PlayHandAnimation(_playerAnimator, playerHand);
             PlayHandAnimation(_opponentAnimator, opponentHand);
 
-            ApplyHandCamPositions();
+            ApplyHandCamPositions(playerHand, opponentHand);
             SetHandCamerasEnabled(true);
             if (_cameraCanvas != null)
                 _cameraCanvas.SetActive(true);
@@ -1094,8 +1127,10 @@ namespace Managers
         /// </summary>
         private void CheckHalfHealthStagger(GameResult result)
         {
-            // 2선승제 단계(4강/결승)만 적용
-            if (_currentStage != TournamentStage.SemiFinals && _currentStage != TournamentStage.Finals) return;
+            // 2선승제 단계(8강/4강/결승)만 적용
+            if (_currentStage != TournamentStage.QuarterFinals &&
+                _currentStage != TournamentStage.SemiFinals &&
+                _currentStage != TournamentStage.Finals) return;
 
             int maxPlayerHP = GetMaxHealthForStage(_currentStage, true);
             int maxOpponentHP = GetMaxHealthForStage(_currentStage, false);
@@ -1838,6 +1873,9 @@ namespace Managers
 
             Debug.Log($"[UpdateHealthBars] stage={_currentStage}, playerHP={playerHealth}, opponentHP={opponentHealth}");
             _uiManager.UpdateHealthBars(playerHealth, opponentHealth);
+
+            // 승리 점수 pip 갱신 (이긴 만큼 채워진 이미지 ON)
+            _uiManager.UpdateVictoryScore(_matchData.PlayerWins, _matchData.OpponentWins);
         }
 
         #endregion

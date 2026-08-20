@@ -241,15 +241,18 @@ MonoBehaviour:
   _mainMenuScene: 00MainMenu
   _startScene: 01Start
   _start8Scene: 
-  _quarterFinalsScene: 02Forest
+  _quarterFinalsScene: QuarterFinals
   _end80Scene: 03End80
   _end8Scene: 04End8
   _start4Scene: 05Start4
   _semiFinalsScene: 06Lava
   _end4Scene: 07End4
   _start2Scene: 08Start2
-  _finalRoundScene: 09Space
+  _finalRoundScene: FinalRound
   _end2Scene: 10End2
+  _tutorialScene: 02Forest
+  _goodEndingScene: VictoryAnimation
+  _badEndingScene: BadAnimation
   _animationSceneDisplayTime: 2
   _shortAnimationDisplayTime: 1.2
   _loadingScreenPrefab: {fileID: 0}

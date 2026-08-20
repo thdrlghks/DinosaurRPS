@@ -199,7 +199,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _videoPlayer: {fileID: 58964817}
-  _nextSceneName: 00MainMenu
+  _nextSceneName: VictoryAnimation
   _allowSkip: 1
 --- !u!1 &281206003
 GameObject:

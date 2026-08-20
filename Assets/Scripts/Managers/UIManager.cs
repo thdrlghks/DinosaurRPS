@@ -20,6 +20,16 @@ namespace Managers
         [SerializeField] private float _trailDelay = 0.5f;
         [SerializeField] private float _trailSpeed = 1f;
 
+        [Header("Victory Score Pips (승리 점수 이미지)")]
+        [Tooltip("플레이어 승리 pip - 기본(빈) 이미지. 인덱스 0 = 1승째 슬롯 (예: Player)")]
+        [SerializeField] private GameObject[] _playerScoreEmpty;
+        [Tooltip("플레이어 승리 pip - 승리(채워진) 이미지. 인덱스 0 = 1승째 슬롯 (예: PlayerVictory (1))")]
+        [SerializeField] private GameObject[] _playerScoreFilled;
+        [Tooltip("상대(닭) 승리 pip - 기본(빈) 이미지 (예: Enemy)")]
+        [SerializeField] private GameObject[] _opponentScoreEmpty;
+        [Tooltip("상대(닭) 승리 pip - 승리(채워진) 이미지 (예: EnemyVictory (1))")]
+        [SerializeField] private GameObject[] _opponentScoreFilled;
+
         [Header("Hand Display")]
         [SerializeField] private Image _playerHandImage;
         [SerializeField] private Image _opponentHandImage;
@@ -343,6 +353,37 @@ namespace Managers
             if (secondaryImage != null)
             {
                 secondaryImage.color = secondaryOriginalColor;
+            }
+        }
+
+        #endregion
+
+        #region Victory Score Pips
+
+        /// <summary>
+        /// 승리 점수 pip 갱신. 이긴 횟수만큼 "채워진" 이미지를 켜고 "기본" 이미지를 끈다.
+        /// 예) playerWins == 1 → PlayerVictory (1) SetActive(true), Player SetActive(false).
+        /// 배열은 인덱스 0이 1승째 슬롯. 슬롯이 1칸(튜토리얼)이든 여러 칸(2점제)이든 동일하게 동작한다.
+        /// </summary>
+        public void UpdateVictoryScore(int playerWins, int opponentWins)
+        {
+            ApplyScorePips(_playerScoreEmpty, _playerScoreFilled, playerWins);
+            ApplyScorePips(_opponentScoreEmpty, _opponentScoreFilled, opponentWins);
+        }
+
+        private static void ApplyScorePips(GameObject[] empty, GameObject[] filled, int wins)
+        {
+            if (filled == null) return;
+
+            for (int i = 0; i < filled.Length; i++)
+            {
+                bool won = i < wins;
+
+                if (filled[i] != null)
+                    filled[i].SetActive(won);
+
+                if (empty != null && i < empty.Length && empty[i] != null)
+                    empty[i].SetActive(!won);
             }
         }
 

@@ -103,8 +103,8 @@ namespace Core.Data
         {
             return stage switch
             {
-                TournamentStage.Qualifiers => 1,
-                TournamentStage.QuarterFinals => isPlayer ? 999 : 1,
+                TournamentStage.Qualifiers => isPlayer ? 999 : 1,  // 튜토리얼: 플레이어 무적, 닭 1방
+                TournamentStage.QuarterFinals => 2,                // 8강: 2점제
                 TournamentStage.SemiFinals => 2,
                 TournamentStage.Finals => 2,
                 TournamentStage.GrandFinals => 1,
