@@ -1284,7 +1284,8 @@ namespace Managers
             chicken.localPosition = landingPosition;
             chicken.localRotation = fallenRotation;
         }
-            
+
+        /* 기존의 시네마신 카메라를 고려하지 않고 하드코딩된 승리카메라 움직임을 주석처리함.
         private async UniTask RaiseTyrannoWithCamera(CancellationToken cancellationToken)
         {
             if (_playerAnimator == null)
@@ -1347,6 +1348,44 @@ namespace Managers
                             Vector3.up);
                     }
                 }
+
+                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+            }
+
+            tyranno.position = tyrannoTargetPosition;
+        }
+        */
+        private async UniTask RaiseTyrannoWithCamera(CancellationToken cancellationToken)
+        {
+            if (_playerAnimator == null)
+            {
+                return;
+            }
+
+            PlaySfx(SfxId.TyrannoRise);
+
+            Transform tyranno = _playerAnimator.transform;
+            Vector3 tyrannoStartPosition = tyranno.position;
+            Vector3 tyrannoTargetPosition = tyrannoStartPosition;
+            tyrannoTargetPosition.y = _tyrannoWinDanceY;
+                
+            float elapsed = 0f;
+            while (elapsed < _tyrannoWinRiseDuration)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                elapsed += Time.deltaTime;
+                float normalizedTime = Mathf.Clamp01(elapsed / _tyrannoWinRiseDuration);
+                float easedTime = Mathf.SmoothStep(0f, 1f, normalizedTime);
+
+                // 캐릭터(티라노)의 위치만 변경합니다.
+                tyranno.position = Vector3.LerpUnclamped(
+                    tyrannoStartPosition,
+                    tyrannoTargetPosition,
+                    easedTime);
+
+                // 기존의 카메라 이동 및 회전(LookRotation) 코드 삭제
+                // Cinemachine의 Win Camera가 알아서 tyranno를 추적할 것입니다.
 
                 await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
             }
