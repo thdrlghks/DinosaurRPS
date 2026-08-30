@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Threading;
 using Core.Data;
 using Core.Enums;
 using Core.Interfaces;
@@ -7,7 +5,10 @@ using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using DigitalRuby.LightningBolt;
 using Gameplay;
+using System.Collections.Generic;
+using System.Threading;
 using TMPro;
+using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.UI;
 using Utils;
@@ -784,14 +785,21 @@ namespace Managers
 
             if (result == GameResult.Win)
             {
+                // 1. 티라노 + 현재 카메라 공통 상승
+                await RaiseTyrannoWithCamera(cancellationToken);
+
                 if (_camController != null)
                 {
+                    // 2. Cinemachine 다시 활성화
                     _camController.RestoreCinemachine();
-                    _camController.SwitchWinCamera(true, playerWinTrigger);
-                    await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate, cancellationToken);
-                }
 
-                await RaiseTyrannoWithCamera(cancellationToken);
+                    // 3. Spline 카메라 이동 시작
+                    // 기다리지 않고 백그라운드로 실행
+                    _camController.PlayWinSplineCamera(
+                        playerWinTrigger,
+                        cancellationToken
+                    ).Forget();
+                }
             }
 
             var battleAnimation = PlayBattleAnimations(result, playerWinTrigger);
@@ -1285,7 +1293,6 @@ namespace Managers
             chicken.localRotation = fallenRotation;
         }
 
-        /* 기존의 시네마신 카메라를 고려하지 않고 하드코딩된 승리카메라 움직임을 주석처리함.
         private async UniTask RaiseTyrannoWithCamera(CancellationToken cancellationToken)
         {
             if (_playerAnimator == null)
@@ -1296,21 +1303,30 @@ namespace Managers
             PlaySfx(SfxId.TyrannoRise);
 
             Transform tyranno = _playerAnimator.transform;
+
             Vector3 tyrannoStartPosition = tyranno.position;
+
             Vector3 tyrannoTargetPosition = tyrannoStartPosition;
             tyrannoTargetPosition.y = _tyrannoWinDanceY;
 
             Camera mainCamera = Camera.main;
+
             Vector3 cameraStartPosition = mainCamera != null
                 ? mainCamera.transform.position
                 : Vector3.zero;
+
             Vector3 cameraTargetPosition = cameraStartPosition
-                                           + Vector3.up
-                                           * (tyrannoTargetPosition.y - tyrannoStartPosition.y);
+                + Vector3.up
+                * (tyrannoTargetPosition.y - tyrannoStartPosition.y);
+
+            // 상승 연출 동안 Cinemachine 제어 중지
+            Unity.Cinemachine.CinemachineBrain brain = null;
 
             if (mainCamera != null)
             {
-                var brain = mainCamera.GetComponent<Unity.Cinemachine.CinemachineBrain>();
+                brain = mainCamera.GetComponent<
+                    Unity.Cinemachine.CinemachineBrain>();
+
                 if (brain != null)
                 {
                     brain.enabled = false;
@@ -1318,80 +1334,59 @@ namespace Managers
             }
 
             float elapsed = 0f;
+
             while (elapsed < _tyrannoWinRiseDuration)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 elapsed += Time.deltaTime;
-                float normalizedTime = Mathf.Clamp01(elapsed / _tyrannoWinRiseDuration);
-                float easedTime = Mathf.SmoothStep(0f, 1f, normalizedTime);
 
+                float normalizedTime =
+                    Mathf.Clamp01(elapsed / _tyrannoWinRiseDuration);
+
+                float easedTime =
+                    Mathf.SmoothStep(0f, 1f, normalizedTime);
+
+                // 티라노 상승
                 tyranno.position = Vector3.LerpUnclamped(
                     tyrannoStartPosition,
                     tyrannoTargetPosition,
                     easedTime);
 
+                // 카메라도 동일한 Y 거리만큼 상승
                 if (mainCamera != null)
                 {
-                    mainCamera.transform.position = Vector3.LerpUnclamped(
-                        cameraStartPosition,
-                        cameraTargetPosition,
-                        easedTime);
+                    mainCamera.transform.position =
+                        Vector3.LerpUnclamped(
+                            cameraStartPosition,
+                            cameraTargetPosition,
+                            easedTime);
 
+                    // 계속 티라노 바라보기
                     Vector3 lookTarget =
-                        tyranno.position + Vector3.up * _tyrannoWinCameraLookOffsetY;
-                    Vector3 lookDirection = lookTarget - mainCamera.transform.position;
+                        tyranno.position
+                        + Vector3.up * _tyrannoWinCameraLookOffsetY;
+
+                    Vector3 lookDirection =
+                        lookTarget - mainCamera.transform.position;
+
                     if (lookDirection.sqrMagnitude > 0.0001f)
                     {
-                        mainCamera.transform.rotation = Quaternion.LookRotation(
-                            lookDirection,
-                            Vector3.up);
+                        mainCamera.transform.rotation =
+                            Quaternion.LookRotation(
+                                lookDirection,
+                                Vector3.up);
                     }
                 }
 
-                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+                await UniTask.Yield(
+                    PlayerLoopTiming.Update,
+                    cancellationToken);
             }
 
             tyranno.position = tyrannoTargetPosition;
-        }
-        */
-        private async UniTask RaiseTyrannoWithCamera(CancellationToken cancellationToken)
-        {
-            if (_playerAnimator == null)
-            {
-                return;
-            }
 
-            PlaySfx(SfxId.TyrannoRise);
-
-            Transform tyranno = _playerAnimator.transform;
-            Vector3 tyrannoStartPosition = tyranno.position;
-            Vector3 tyrannoTargetPosition = tyrannoStartPosition;
-            tyrannoTargetPosition.y = _tyrannoWinDanceY;
-                
-            float elapsed = 0f;
-            while (elapsed < _tyrannoWinRiseDuration)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                elapsed += Time.deltaTime;
-                float normalizedTime = Mathf.Clamp01(elapsed / _tyrannoWinRiseDuration);
-                float easedTime = Mathf.SmoothStep(0f, 1f, normalizedTime);
-
-                // 캐릭터(티라노)의 위치만 변경합니다.
-                tyranno.position = Vector3.LerpUnclamped(
-                    tyrannoStartPosition,
-                    tyrannoTargetPosition,
-                    easedTime);
-
-                // 기존의 카메라 이동 및 회전(LookRotation) 코드 삭제
-                // Cinemachine의 Win Camera가 알아서 tyranno를 추적할 것입니다.
-
-                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
-            }
-
-            tyranno.position = tyrannoTargetPosition;
-        }
+        }   
 
         private async UniTask MoveCameraToChickenFront(
             CancellationToken cancellationToken)

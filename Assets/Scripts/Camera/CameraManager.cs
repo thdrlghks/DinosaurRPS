@@ -1,8 +1,10 @@
+using Cysharp.Threading.Tasks;
+using System.Collections;
+using System.Threading;
+using System.Threading.Tasks;
+using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.UI;
-using Unity.Cinemachine;
-using System.Collections;
-using System.Threading.Tasks;
 
 
 public class CameraManager : MonoBehaviour
@@ -36,7 +38,6 @@ public class CameraManager : MonoBehaviour
     public float zoomOutDuration = 2.5f;  // �ܾƿ� ���� �ð�
 
     public float holdBeforeZoomOut = 0f;
-
 
     public CameraShake cameraShake;
 
@@ -116,6 +117,151 @@ public class CameraManager : MonoBehaviour
             }
             splineDolly.CameraPosition = 1f;
         }
+    }
+    private async UniTask MoveAlongSplineAsync(
+    CinemachineCamera cam,
+    float duration,
+    CancellationToken cancellationToken)
+    {
+        if (cam == null)
+        {
+            return;
+        }
+
+        var splineDolly =
+            cam.GetComponent<CinemachineSplineDolly>();
+
+        var settings =
+            cam.GetComponent<CameraMoveSettings>();
+
+        if (splineDolly == null)
+        {
+            return;
+        }
+
+        splineDolly.CameraPosition = 0f;
+
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            elapsed += Time.deltaTime;
+
+            float t =
+                Mathf.Clamp01(elapsed / duration);
+
+            float curveValue = t;
+
+            if (settings != null)
+            {
+                curveValue =
+                    settings.moveCurve.Evaluate(t);
+            }
+
+            splineDolly.CameraPosition = curveValue;
+
+            await UniTask.Yield(
+                PlayerLoopTiming.Update,
+                cancellationToken);
+        }
+
+        splineDolly.CameraPosition = 1f;
+    }
+    public async UniTask PlayWinSplineCamera(
+    string triggerName,
+    CancellationToken cancellationToken)
+    {
+        // Trigger에 맞는 카메라 Binding 찾기
+        AnimationCameraBinding binding =
+            FindBindingForTrigger(
+                playerWinAnimationCameras,
+                triggerName);
+
+        // 못 찾으면 기본 승리 카메라
+        if (binding == null || binding.camera == null)
+        {
+            SwitchCamera(playerWinCam);
+            return;
+        }
+
+        // 해당 승리 카메라 활성화
+        SwitchCamera(binding.camera);
+
+        // 해당 카메라의 Spline Dolly 가져오기
+        CinemachineSplineDolly splineDolly =
+            binding.camera.GetComponent<CinemachineSplineDolly>();
+
+        if (splineDolly == null)
+        {
+            Debug.LogWarning(
+                $"[PlayWinSplineCamera] " +
+                $"{binding.camera.name}에 CinemachineSplineDolly가 없습니다.");
+
+            return;
+        }
+
+        // Spline 시작점으로 초기화
+        splineDolly.CameraPosition = 0f;
+
+        // Spline 이동
+        if (binding.moveAlongSpline)
+        {
+            float elapsed = 0f;
+
+            while (elapsed < binding.moveDuration)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                elapsed += Time.deltaTime;
+
+                float t = Mathf.Clamp01(
+                    elapsed / binding.moveDuration);
+
+                // 기본값은 Linear
+                float curveValue = t;
+
+                // 기존 CameraMoveSettings가 있다면 Curve 사용
+                CameraMoveSettings settings =
+                    binding.camera.GetComponent<CameraMoveSettings>();
+
+                if (settings != null)
+                {
+                    curveValue =
+                        settings.moveCurve.Evaluate(t);
+                }
+
+                splineDolly.CameraPosition = curveValue;
+
+                await UniTask.Yield(
+                    PlayerLoopTiming.Update,
+                    cancellationToken);
+            }
+
+            splineDolly.CameraPosition = 1f;
+        }
+    }
+    private static AnimationCameraBinding FindBindingForTrigger(
+    AnimationCameraBinding[] bindings,
+    string triggerName)
+    {
+        if (bindings != null)
+        {
+            for (int i = 0; i < bindings.Length; i++)
+            {
+                AnimationCameraBinding binding = bindings[i];
+
+                if (binding != null &&
+                    binding.camera != null &&
+                    binding.triggerName == triggerName)
+                {
+                    return binding;
+                }
+            }
+        }
+
+        return null;
     }
 
     public void SwitchCamera(CinemachineCamera targetCam)
