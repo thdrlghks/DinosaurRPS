@@ -882,6 +882,10 @@ MonoBehaviour:
   _opponentHealthTrail: {fileID: 0}
   _trailDelay: 0.5
   _trailSpeed: 1
+  _playerScoreEmpty: []
+  _playerScoreFilled: []
+  _opponentScoreEmpty: []
+  _opponentScoreFilled: []
   _playerHandImage: {fileID: 0}
   _opponentHandImage: {fileID: 0}
   _rockSprite: {fileID: -388246074, guid: 6ea4ff89518ab37459635abe3ef27e09, type: 3}
@@ -7064,7 +7068,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1120355695
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12198,6 +12202,7 @@ MonoBehaviour:
   _cameraCanvas: {fileID: 1009064574}
   _tyrannoHandCam: {fileID: 1536354245}
   _chickenHandCam: {fileID: 1319721310}
+  _handCamPoses: {fileID: 0}
   _handPoseFreezeNormalizedTime: 0.95
   _handPoseFreezeDuration: 1
   _camController: {fileID: 341776529}
