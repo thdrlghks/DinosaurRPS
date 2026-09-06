@@ -58,6 +58,7 @@ public class CameraManager : MonoBehaviour
     private Camera _mainCamera;
 
     private float waitTime = 0.8f;
+    public bool IntroSequenceComplete { get; private set; }
 
     void Start()
     {
@@ -68,6 +69,7 @@ public class CameraManager : MonoBehaviour
 
     IEnumerator PlayFullIntroSequence()
     {
+        IntroSequenceComplete = false;
         // 1. start
         if (isStartBattle)
         {
@@ -87,6 +89,7 @@ public class CameraManager : MonoBehaviour
 
         // 4. paper zoom out
         SwitchCamera(introZoomOutCam);
+        IntroSequenceComplete = true;
         
     }
 

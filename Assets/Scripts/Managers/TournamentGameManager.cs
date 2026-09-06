@@ -140,6 +140,7 @@ namespace Managers
         private bool _canInput;
         private bool _roundInProgress;
         private bool _isCountingDown;
+        private TutorialDirector _tutorial;
         private Vector3 _tyrannoOriginalPosition;
         private bool _hasTyrannoOriginalPosition;
 
@@ -173,6 +174,7 @@ namespace Managers
 
         private void Awake()
         {
+            _tutorial = GetComponent<TutorialDirector>();
             if (_sfxManager == null)
             {
                 _sfxManager = FindObjectOfType<SFXManager>();
@@ -317,7 +319,7 @@ namespace Managers
         {
             await PlayCanvasIntroAnimation();
             InitializeMatch();
-            _canInput = true;
+            _canInput = _tutorial == null;
             _gameHealthCanvas.gameObject.SetActive(true);
             StartRound().Forget();
         }
@@ -523,6 +525,7 @@ namespace Managers
 
         private bool IsHandSealed(HandType hand)
         {
+            if (_tutorial != null) return hand == HandType.Paper && !_tutorial.PaperUnlocked;
             return _matchData.TotalRounds == 0 && _sealedHands.Contains(hand);
         }
 
@@ -552,6 +555,7 @@ namespace Managers
         {
             Debug.Log($"SelectHand called - handType: {handType}, canInput: {_canInput}, isCountingDown: {_isCountingDown}");
             if (!_isCountingDown && !_canInput) return;
+            if (_tutorial != null && (Time.timeScale <= 0f || IsHandSealed(handType))) return;
 
             _selectedHand = handType;
             PlaySfx(SfxId.HandSelect);
@@ -574,7 +578,7 @@ namespace Managers
 
         private async UniTask StartCountdownAndBattle(CancellationToken cancellationToken)
         {
-            _isCountingDown = true;
+            _isCountingDown = _tutorial == null;
             _canInput = false;
             _selectedHand = null;
 
@@ -585,7 +589,42 @@ namespace Managers
 
             await countdownTask;
 
+            if (_tutorial != null)
+            {
+                // Preserve the chant and camera introduction before showing 3.
+                if (_camController != null)
+                    await UniTask.WaitUntil(() => _camController.IntroSequenceComplete, cancellationToken: cancellationToken);
+                // Settle on the existing wide battle camera for the explanation.
+                SwitchToIdleCamera();
+                await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate, cancellationToken);
+                var brain = Camera.main != null ? Camera.main.GetComponent<CinemachineBrain>() : null;
+                if (brain != null)
+                    await UniTask.WaitUntil(() => !brain.IsBlending, cancellationToken: cancellationToken);
+                await _tutorial.ShowThreeAndGuide(cancellationToken);
+                _isCountingDown = true;
+                await _tutorial.RunNumberCountdown(cancellationToken);
+            }
+
             _isCountingDown = false;
+
+            if (_tutorial != null && !_selectedHand.HasValue)
+            {
+                HideBattleUIForCinematic();
+                SetHealthUIVisible(true);
+                SwitchToIdleCamera();
+                PlaySfx(SfxId.RoundLose);
+                SetTriggerIfConfigured(_playerAnimator, _playerLoseTrigger);
+                _uiManager.UpdateVictoryScore(0, 1);
+                await _tutorial.ShowForfeit(cancellationToken);
+                StopResultSfx();
+                ResetAnimations();
+                _opponentAnimator.Play("chickenIdle", 0, 0f);
+                _uiManager.UpdateVictoryScore(_matchData.PlayerWins, _matchData.OpponentWins);
+                SetBattleUIVisible(true);
+                _roundInProgress = false;
+                StartRound().Forget();
+                return;
+            }
 
             if (!_selectedHand.HasValue)
             {
@@ -787,6 +826,7 @@ namespace Managers
 
             if (result == GameResult.Win)
             {
+                if (_tutorial != null) _tutorial.MarkVictoryMotion();
                 // 1. 티라노 + 현재 카메라 공통 상승
                 await RaiseTyrannoWithCamera(cancellationToken);
 
@@ -844,6 +884,7 @@ namespace Managers
                 StopResultSfx();
 
                 // 닭이 돌아갈 기본 위치 저장
+                if (_tutorial != null) _tutorial.MarkChickenDefeat();
                 Transform chicken = _opponentAnimator.transform;
                 Vector3 defaultPosition = chicken.localPosition;
                 Quaternion defaultRotation = chicken.localRotation;
@@ -871,6 +912,19 @@ namespace Managers
                     opponentStateHashBeforeBattle,
                     cancellationToken);
                 StopResultSfx();
+            }
+
+            if (_tutorial != null && isChickenFinalDefeat)
+            {
+                UpdateHealthBars();
+                BattleHistoryManager.Instance?.CompleteMatch(GameResult.Win);
+                await UniTask.Delay(700, cancellationToken: cancellationToken);
+                ResetRPSColors();
+                SetBattleUIVisible(true);
+                await _tutorial.UnlockPaper(cancellationToken);
+                _roundInProgress = false;
+                SceneController.Instance.LoadScene("02TutorialEnd");
+                return;
             }
 
             // 연출 끝 → 상시 HUD(체력바 / QWE) 복구.
