@@ -589,7 +589,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _videoPlayer: {fileID: 934115159}
-  _nextSceneName: 02Forest
+  _nextSceneName: Tutorial
   _allowSkip: 1
   _skipButton: {fileID: 1403097684}
   _showButtonAfterVideo: 1
@@ -601,7 +601,7 @@ VideoPlayer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 934115157}
   m_Enabled: 1
-  m_VideoClip: {fileID: 32900000, guid: 7cb7706aad26228458a0d41d0f698c0b, type: 3}
+  m_VideoClip: {fileID: 32900000, guid: c196a036423714a4caf12b5ca1229d69, type: 3}
   m_TargetCameraAlpha: 1
   m_TargetCamera3DLayout: 0
   m_TargetCamera: {fileID: 0}

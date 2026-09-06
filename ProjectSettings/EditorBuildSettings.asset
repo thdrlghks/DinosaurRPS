@@ -18,16 +18,16 @@ EditorBuildSettings:
     path: Assets/Scenes/01Start.unity
     guid: 1699fbc30ea973c48bd58a49b7170753
   - enabled: 1
-    path: Assets/Scenes/03End80.unity
+    path: Assets/Scenes/02TutorialEnd.unity
     guid: f74e7b83a6a6f7543a5debf4d004c49b
   - enabled: 1
     path: Assets/Scenes/QuarterFinals.unity
     guid: 2bda947e648bc7944a900b393aa8ab6f
   - enabled: 1
-    path: Assets/Scenes/02Forest.unity
+    path: Assets/Scenes/Tutorial.unity
     guid: 24d434c4db9b48d4a914505a9a7a34e3
   - enabled: 1
-    path: Assets/Scenes/04End8.unity
+    path: Assets/Scenes/03QuarterFirst.unity
     guid: 3939c01f3ac2a5e478c469cd8796a927
   - enabled: 1
     path: Assets/Scenes/05Start4.unity

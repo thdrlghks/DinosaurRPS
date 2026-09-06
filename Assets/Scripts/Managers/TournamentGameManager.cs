@@ -85,6 +85,8 @@ namespace Managers
         [SerializeField] private GameObject _cameraCanvas;
         [SerializeField] private Transform _tyrannoHandCam;
         [SerializeField] private Transform _chickenHandCam;
+        [SerializeField] private Light _tyrannoHandLight;
+        [SerializeField] private Light _chickenHandLight;
         [Tooltip("티라노/닭의 가위·바위·보 손모양별 클로즈업 카메라 좌표(위치·회전·FOV) 6종. " +
                  "TournamentGameManager 인스펙터 하단의 캡처 버튼으로 Play 중 채워 넣는다.")]
         [SerializeField] private HandCamPoseLibrary _handCamPoses;
@@ -983,6 +985,8 @@ namespace Managers
         {
             if (_tyrannoHandCamera != null) _tyrannoHandCamera.enabled = enabled;
             if (_chickenHandCamera != null) _chickenHandCamera.enabled = enabled;
+            if (_tyrannoHandLight != null) _tyrannoHandLight.enabled = enabled;
+            if (_chickenHandLight != null) _chickenHandLight.enabled = enabled;
         }
 
         private async UniTask ShowHandResultPreview(
@@ -1071,7 +1075,10 @@ namespace Managers
             while (elapsed < waitForEnterTimeout)
             {
                 AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
-                if (stateInfo.fullPathHash != previousStateHash)
+                // Wait for the incoming blend to finish before treating this as
+                // the hand pose. A transition alone does not mean the hand is ready.
+                if (!animator.IsInTransition(AnimationLayerIndex) &&
+                    stateInfo.fullPathHash != previousStateHash)
                 {
                     handStateHash = stateInfo.fullPathHash;
                     break;
@@ -1095,10 +1102,16 @@ namespace Managers
                     return;
                 }
 
-                if (animator.IsInTransition(AnimationLayerIndex) ||
-                    stateInfo.normalizedTime >= _handPoseFreezeNormalizedTime)
+                if (stateInfo.normalizedTime >= _handPoseFreezeNormalizedTime ||
+                    animator.IsInTransition(AnimationLayerIndex))
                 {
+                    // An outgoing blend can start before the configured hold time
+                    // (the chicken returns to Idle at 88%). Remove that blend and
+                    // hold the actual hand state, never a mixture with Idle.
+                    float holdTime = Mathf.Min(stateInfo.normalizedTime, _handPoseFreezeNormalizedTime);
+                    animator.Play(handStateHash, AnimationLayerIndex, holdTime);
                     animator.speed = 0f;
+                    animator.Update(0f);
                     return;
                 }
 

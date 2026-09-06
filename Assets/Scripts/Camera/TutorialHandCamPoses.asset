@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c7689131f9e82c439b0938cbcbd328d, type: 3}
+  m_Name: TutorialHandCamPoses
+  m_EditorClassIdentifier: 
+  tyrannoRock:
+    configured: 1
+    position: {x: -3.858000, y: 2.494372, z: 0.823058}
+    eulerAngles: {x: 0, y: 90, z: 0}
+    fieldOfView: 10.350000
+  tyrannoPaper:
+    configured: 1
+    position: {x: -3.858000, y: 2.608426, z: 0.832510}
+    eulerAngles: {x: 0, y: 90, z: 0}
+    fieldOfView: 12.725083
+  tyrannoScissors:
+    configured: 1
+    position: {x: -3.858000, y: 2.489507, z: 0.856044}
+    eulerAngles: {x: 0, y: 90, z: 0}
+    fieldOfView: 10.350000
+  chickenRock:
+    configured: 1
+    position: {x: -4.632000, y: 1.392022, z: -1.578983}
+    eulerAngles: {x: 0, y: 90, z: 0}
+    fieldOfView: 11.400294
+  chickenPaper:
+    configured: 1
+    position: {x: -4.632000, y: 1.410292, z: -1.509369}
+    eulerAngles: {x: 0, y: 90, z: 0}
+    fieldOfView: 14.775108
+  chickenScissors:
+    configured: 1
+    position: {x: -4.632000, y: 1.392022, z: -1.509369}
+    eulerAngles: {x: 0, y: 90, z: 0}
+    fieldOfView: 14.194726
