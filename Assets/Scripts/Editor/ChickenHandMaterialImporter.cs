@@ -9,15 +9,19 @@ using UnityEngine.Rendering;
 // DiffuseColor/Opacity fields read by URP's generic FBX material importer.
 public sealed class ChickenHandMaterialImporter : AssetPostprocessor
 {
-    public override uint GetVersion() => 1;
+    public override uint GetVersion() => 2;
     public override int GetPostprocessOrder() => 0; // After URP's -980/-960 importers.
 
     private void OnPreprocessMaterialDescription(
         MaterialDescription description, Material material, AnimationClip[] clips)
     {
-        if (!assetPath.StartsWith("Assets/Graphics/Characters/Chicken/", StringComparison.Ordinal)
-            || !string.Equals(Path.GetExtension(assetPath), ".fbx", StringComparison.OrdinalIgnoreCase)
-            || material.name != "hand1")
+        bool chickenHand = assetPath.StartsWith("Assets/Graphics/Characters/Chicken/", StringComparison.Ordinal)
+            && material.name == "hand1";
+        bool ankylo = assetPath == "Assets/Graphics/ankyloRock.fbx"
+            || assetPath == "Assets/Graphics/ankyloPaper.fbx"
+            || assetPath == "Assets/Graphics/ankyloScissor.fbx";
+        if ((!chickenHand && !ankylo)
+            || !string.Equals(Path.GetExtension(assetPath), ".fbx", StringComparison.OrdinalIgnoreCase))
             return;
 
         if (!ReadVector(description, "baseColor", out var sourceColor)

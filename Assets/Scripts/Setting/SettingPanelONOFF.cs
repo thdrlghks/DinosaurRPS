@@ -2,6 +2,7 @@ using UnityEngine;
 
 namespace Setting
 {
+    [DefaultExecutionOrder(-100)]
     public class SettingPanelONOFF : MonoBehaviour
     {
         public GameObject settingsPanel;
@@ -9,7 +10,7 @@ namespace Setting
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (settingsPanel != null && settingUI != null && Input.GetKeyDown(KeyCode.Escape))
             {
                 if (settingsPanel.activeSelf)
                 {
@@ -24,8 +25,7 @@ namespace Setting
 
         public void OpenPanel()
         {
-            settingsPanel.SetActive(true);
-            Time.timeScale = 0f; 
+            if (settingsPanel != null) settingsPanel.SetActive(true);
         }
 
     }

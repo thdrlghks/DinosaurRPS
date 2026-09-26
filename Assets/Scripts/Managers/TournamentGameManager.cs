@@ -95,6 +95,8 @@ namespace Managers
         [SerializeField] private GameObject _cameraCanvas;
         [SerializeField] private Transform _tyrannoHandCam;
         [SerializeField] private Transform _chickenHandCam;
+        [SerializeField] private RawImage _playerHandRawImage;
+        [SerializeField] private BorrowedPaperPreview _borrowedPaperPreviewPrefab;
         [SerializeField] private Light _tyrannoHandLight;
         [SerializeField] private Light _chickenHandLight;
         [Tooltip("티라노/닭의 가위·바위·보 손모양별 클로즈업 카메라 좌표(위치·회전·FOV) 6종. " +
@@ -159,6 +161,7 @@ namespace Managers
         // 손 클로즈업 카메라 캐시 (Awake에서 1회 탐색)
         private Camera _tyrannoHandCamera;
         private Camera _chickenHandCamera;
+        private BorrowedPaperPreview _borrowedPaperPreview;
 
         // 씬에 배치된 QWE 아이콘의 원래 스케일 (고정값 대신 이 값을 기준으로 사용)
         private Vector3 _rpsRockOriginalScale = Vector3.one;
@@ -326,14 +329,17 @@ namespace Managers
 
             if (_tutorial != null)
             {
-                // 가이드를 먼저 읽은 뒤 기존 VS 연출과 카메라 워킹을 시작한다.
+                // 튜토리얼 안내 / 영상 이후 8강 보상 연출을 마친 뒤 VS 연출을 시작한다.
                 if (_startBackGround != null) _startBackGround.SetActive(false);
                 if (_playerCanvas != null) _playerCanvas.SetActive(false);
                 if (_opponentCanvas != null) _opponentCanvas.SetActive(false);
                 SetBattleUIVisible(true);
                 ShowRPSSelectUI();
                 await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate, cancellationToken);
-                await _tutorial.ShowGuide(cancellationToken);
+                if (_tutorial.PaperUnlockOnEntry)
+                    await _tutorial.UnlockPaper(cancellationToken);
+                else
+                    await _tutorial.ShowGuide(cancellationToken);
             }
 
             SetBattleUIVisible(false);
@@ -471,41 +477,40 @@ namespace Managers
 
         private void HandleInput()
         {
+            if (Input.GetKeyDown(KeyCode.Q))
+                SelectHandFromKey(KeyCode.Q);
+            else if (Input.GetKeyDown(KeyCode.W))
+                SelectHandFromKey(KeyCode.W);
+            else if (Input.GetKeyDown(KeyCode.E))
+                SelectHandFromKey(KeyCode.E);
+        }
+
+        private void SelectHandFromKey(KeyCode key)
+        {
             if (!_canInput || Time.timeScale <= 0f) return;
 
-            if (Input.GetKeyDown(KeyCode.Q))
+            HandType? hand = key switch
             {
-                Debug.Log("Q key pressed!");
-                SelectHand(HandType.Rock);
-            }
-
-            else if (Input.GetKeyDown(KeyCode.W))
+                KeyCode.Q => HandType.Scissors,
+                KeyCode.W => HandType.Paper,
+                KeyCode.E => HandType.Rock,
+                _ => null
+            };
+            if (!hand.HasValue) return;
+            if (IsHandSealed(hand.Value))
             {
-                if (IsHandSealed(HandType.Paper))
-                {
-                    ShowSealedWarning("W를 누를 수 없습니다!");
-                    return;
-                }
-                Debug.Log("W key pressed!");
-                SelectHand(HandType.Paper);
+                ShowSealedWarning($"{key}를 누를 수 없습니다!");
+                return;
             }
-            else if (Input.GetKeyDown(KeyCode.E))
-            {
-                if (IsHandSealed(HandType.Scissors))
-                {
-                    ShowSealedWarning("E를 누를 수 없습니다!");
-                    return;
-                }
-                Debug.Log("E key pressed!");
-                SelectHand(HandType.Scissors);
-            }
+            Debug.Log($"{key} key pressed: {hand.Value}");
+            SelectHand(hand.Value);
         }
 
         #endregion
 
         private bool IsHandSealed(HandType hand)
         {
-            // 손 잠금은 닭 튜토리얼의 보자기 해금 전까지만 적용한다.
+            // 튜토리얼에서는 잠긴 상태를 유지하고, 영상 이후 8강 입장 연출에서 해금한다.
             return _tutorial != null && hand == HandType.Paper && !_tutorial.PaperUnlocked;
         }
 
@@ -615,7 +620,7 @@ namespace Managers
 
         private async UniTask RunRoundNumberCountdown(CancellationToken cancellationToken)
         {
-            if (_tutorial != null)
+            if (_tutorial != null && !_tutorial.PaperUnlockOnEntry)
             {
                 await _tutorial.RunNumberCountdown(cancellationToken);
                 return;
@@ -985,9 +990,6 @@ namespace Managers
                 UpdateHealthBars();
                 BattleHistoryManager.Instance?.CompleteMatch(GameResult.Win);
                 await UniTask.Delay(700, cancellationToken: cancellationToken);
-                ResetRPSColors();
-                SetBattleUIVisible(true);
-                await _tutorial.UnlockPaper(cancellationToken);
                 await ShowMatchResult(cancellationToken);
                 SceneController.Instance.LoadScene("02TutorialEnd");
                 return false;
@@ -1125,16 +1127,33 @@ namespace Managers
 
             try
             {
+                Animator borrowedPaperAnimator = null;
+                if (playerHand == HandType.Paper && _playerHandRawImage != null &&
+                    _borrowedPaperPreviewPrefab != null)
+                {
+                    if (_borrowedPaperPreview == null)
+                    {
+                        // Keep the preview model outside the arena and all gameplay cameras.
+                        _borrowedPaperPreview = Instantiate(_borrowedPaperPreviewPrefab,
+                            new Vector3(10000f, 10000f, 10000f), Quaternion.identity, transform);
+                    }
+                    borrowedPaperAnimator = _borrowedPaperPreview.Begin(_playerHandRawImage);
+                    if (borrowedPaperAnimator != null && _tyrannoHandCamera != null)
+                        _tyrannoHandCamera.enabled = false;
+                }
+
                 await UniTask.WhenAll(
                     HoldHandPoseAtEndAsync(
                         playerStateHashBeforeHand,
                         opponentStateHashBeforeHand,
-                        cancellationToken),
+                        cancellationToken,
+                        borrowedPaperAnimator),
                     UniTask.Delay((int)(_rawImageDisplayTime * 1000f), cancellationToken: cancellationToken)
                 );
             }
             finally
             {
+                if (_borrowedPaperPreview != null) _borrowedPaperPreview.End();
                 RestoreHandCamFollow();
                 SetHandCamerasEnabled(false);
                 if (_cameraCanvas != null)
@@ -1145,7 +1164,8 @@ namespace Managers
         private async UniTask HoldHandPoseAtEndAsync(
             int playerPreviousStateHash,
             int opponentPreviousStateHash,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Animator borrowedPaperAnimator = null)
         {
             if (_handPoseFreezeDuration <= 0f)
             {
@@ -1159,7 +1179,8 @@ namespace Managers
             {
                 await UniTask.WhenAll(
                     FreezeAnimatorAtHandPoseEndAsync(_playerAnimator, playerPreviousStateHash, cancellationToken),
-                    FreezeAnimatorAtHandPoseEndAsync(_opponentAnimator, opponentPreviousStateHash, cancellationToken)
+                    FreezeAnimatorAtHandPoseEndAsync(_opponentAnimator, opponentPreviousStateHash, cancellationToken),
+                    FreezeAnimatorAtHandPoseEndAsync(borrowedPaperAnimator, 0, cancellationToken)
                 );
 
                 await UniTask.Delay((int)(_handPoseFreezeDuration * 1000f), cancellationToken: cancellationToken);
@@ -1329,7 +1350,8 @@ namespace Managers
 
         private bool IsChickenFinalDefeat(GameResult result)
         {
-            return result == GameResult.Win
+            return _currentStage == TournamentStage.Qualifiers
+                   && result == GameResult.Win
                    && _matchData.IsMatchOver()
                    && _matchData.GetWinner() == GameResult.Win;
         }

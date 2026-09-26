@@ -24,13 +24,34 @@ namespace UI
         private RectTransform _artwork;
         private GameObject _ownedEventSystem;
         private Button _nextButton;
+        private CanvasGroup _canvasGroup;
+        private bool _awaitingInputRelease;
         private TMP_FontAsset _font;
         private bool _canContinue;
         private bool _continued;
         private bool _showing;
 
         public bool IsShowing => _showing;
-        public bool CanContinue => _canContinue;
+        public bool CanContinue => _canContinue && !_awaitingInputRelease && !GamePause.BlocksGameplayInput;
+
+        private void OnEnable() => GamePause.Changed += OnPauseChanged;
+        private void OnDisable() => GamePause.Changed -= OnPauseChanged;
+
+        private void OnPauseChanged(bool paused)
+        {
+            _awaitingInputRelease = true;
+            UpdateInteraction();
+        }
+
+        private void UpdateInteraction()
+        {
+            if (_canvasGroup != null)
+            {
+                _canvasGroup.interactable = !GamePause.BlocksGameplayInput;
+                _canvasGroup.blocksRaycasts = !GamePause.IsPaused;
+            }
+            if (_nextButton != null) _nextButton.interactable = CanContinue;
+        }
 
         public async UniTask ShowAsync(
             MatchRecord record,
@@ -48,6 +69,7 @@ namespace UI
             _showing = true;
             _continued = false;
             _canContinue = false;
+            _awaitingInputRelease = true;
             _font = font;
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, this.GetCancellationTokenOnDestroy());
             try
@@ -57,9 +79,11 @@ namespace UI
                 Canvas.ForceUpdateCanvases();
                 // A key held while the result appears must be released before it can advance.
                 await UniTask.Delay(250, ignoreTimeScale: true, cancellationToken: linked.Token);
-                await UniTask.WaitUntil(AdvanceInputsReleased, cancellationToken: linked.Token);
+                await UniTask.WaitUntil(() => !GamePause.BlocksGameplayInput && AdvanceInputsReleased(),
+                    cancellationToken: linked.Token);
+                _awaitingInputRelease = false;
                 _canContinue = true;
-                _nextButton.interactable = true;
+                UpdateInteraction();
                 await UniTask.WaitUntil(() => _continued, cancellationToken: linked.Token);
             }
             finally
@@ -71,13 +95,17 @@ namespace UI
                 _canvasRect = null;
                 _artwork = null;
                 _nextButton = null;
+                _canvasGroup = null;
                 _ownedEventSystem = null;
             }
         }
 
         private void Update()
         {
-            if (_canContinue && (Input.GetKeyDown(KeyCode.Return) ||
+            if (_awaitingInputRelease && !GamePause.BlocksGameplayInput && AdvanceInputsReleased())
+                _awaitingInputRelease = false;
+            UpdateInteraction();
+            if (CanContinue && (Input.GetKeyDown(KeyCode.Return) ||
                                  Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space)))
                 Continue();
         }
@@ -90,7 +118,7 @@ namespace UI
 
         public void Continue()
         {
-            if (!_canContinue) return;
+            if (!CanContinue || Input.GetKeyDown(KeyCode.Escape)) return;
             _canContinue = false;
             _continued = true;
             if (_nextButton != null) _nextButton.interactable = false;
@@ -109,6 +137,8 @@ namespace UI
             scaler.referenceResolution = new Vector2(1920f, 1080f);
             scaler.matchWidthOrHeight = 0.5f;
             _canvasRect.gameObject.AddComponent<GraphicRaycaster>();
+            _canvasGroup = _canvasRect.gameObject.AddComponent<CanvasGroup>();
+            UpdateInteraction();
 
             var blocker = NewRect("Background Input Blocker", _canvasRect);
             Stretch(blocker);

@@ -30,8 +30,8 @@ public static class GuidedTutorialSetup
         Set("_paper", paper);
         Set("_unlockedPaper", Get<Sprite>(uiSettings, "_paperSprite"));
         paper.gameObject.SetActive(false);
-        SetArray(director, "_controls", Get<Image>(settings, "_rpsRockImage").rectTransform,
-            Get<Image>(settings, "_rpsScissorsImage").rectTransform);
+        SetArray(director, "_controls", Get<Image>(settings, "_rpsScissorsImage").rectTransform,
+            Get<Image>(settings, "_rpsRockImage").rectTransform);
 
         // Preserve the existing HUD transforms and use its own artwork for pips.
         var hud = Get<Canvas>(settings, "_gameHealthCanvas");

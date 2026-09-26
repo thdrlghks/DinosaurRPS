@@ -1,9 +1,7 @@
-using Managers;
+using System.Collections;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using UnityEngine.Video;
-using Entry = UnityEngine.EventSystems.EventTrigger.Entry;
 
 namespace Managers
 {
@@ -14,15 +12,11 @@ namespace Managers
 
         [Header("Scene Settings")]
         [SerializeField] private string _nextSceneName = "SemiFinals";
-        [SerializeField] private bool _allowSkip = true;
-
-        [Header("Skip UI")]
+        [Header("Next UI (shown after playback)")]
         [SerializeField] private Image _skipButton;
-        [SerializeField] private bool _showButtonAfterVideo = true;
-
-        [Header("Loading Cover")]
-        [Tooltip("영상이 준비되기 전 씬을 가려줄 풀스크린 검은 이미지")]
-        [SerializeField] private Image _loadingCover;
+        [SerializeField] private Sprite _nextButtonIdleSprite;
+        [SerializeField] private Sprite _nextButtonClickedSprite;
+        private const float NextSceneDelay = 0.5f;
 
         [Header("Diagnostics")]
         [Tooltip("Logs decoder errors, dropped frames, and playback clock resyncs.")]
@@ -32,17 +26,48 @@ namespace Managers
         private bool _diagnosticsSubscribed;
         private int _droppedFrameCount;
         private int _clockResyncCount;
+        private Button _nextButton;
+        private bool _videoEnded;
+        private bool _clickAccepted;
+        private bool _resumeVideo;
+        private Coroutine _transitionRoutine;
+
+        private void OnEnable() => GamePause.Changed += OnPauseChanged;
+
+        private void OnDisable()
+        {
+            GamePause.Changed -= OnPauseChanged;
+            if (_transitionRoutine != null)
+            {
+                StopCoroutine(_transitionRoutine);
+                _transitionRoutine = null;
+                _clickAccepted = false;
+                if (_skipButton != null) _skipButton.sprite = _nextButtonIdleSprite;
+            }
+        }
 
         private void Start()
         {
+            if (_skipButton == null || _nextButtonIdleSprite == null || _nextButtonClickedSprite == null)
+            {
+                Debug.LogError("Video Next button and both sprites must be assigned.", this);
+                return;
+            }
+            _nextButton = _skipButton.GetComponent<Button>();
+            if (_nextButton == null) _nextButton = _skipButton.gameObject.AddComponent<Button>();
+            _nextButton.targetGraphic = _skipButton;
+            _nextButton.transition = Selectable.Transition.None;
+            _nextButton.navigation = new Navigation { mode = Navigation.Mode.None };
+            _nextButton.interactable = false;
+            _nextButton.onClick.AddListener(SkipVideo);
+            _skipButton.sprite = _nextButtonIdleSprite;
+            _skipButton.preserveAspect = true;
+            _skipButton.gameObject.SetActive(false);
+
             if (_videoPlayer == null)
             {
                 _videoPlayer = GetComponent<VideoPlayer>();
             }
-
-            // 준비되기 전 씬이 보이지 않도록 먼저 덮는다.
-            if (_loadingCover != null)
-                _loadingCover.gameObject.SetActive(true);
 
             if (_videoPlayer != null)
             {
@@ -51,6 +76,7 @@ namespace Managers
 
                 // 첫 프레임 디코딩 대기 후 재생 -> 씬 노출(플래시) 방지
                 _videoPlayer.playOnAwake = false;
+                _videoPlayer.isLooping = false;
                 _videoPlayer.waitForFirstFrame = true;
                 _videoPlayer.prepareCompleted += OnVideoPrepared;
                 _videoPlayer.Prepare();
@@ -61,31 +87,22 @@ namespace Managers
                 Debug.LogError("VideoPlayer not found!");
             }
 
-            if (_skipButton != null)
-            {
-                if (_showButtonAfterVideo)
-                    _skipButton.gameObject.SetActive(false);
-
-                var trigger = _skipButton.gameObject.AddComponent<EventTrigger>();
-                var entry = new EventTrigger.Entry { eventID = EventTriggerType.PointerClick };
-                entry.callback.AddListener(_ => SkipVideo());
-                trigger.triggers.Add(entry);
-            }
         }
 
         private void OnVideoPrepared(VideoPlayer vp)
         {
-            // 첫 프레임까지 준비 완료 -> 재생 시작하고 가림막 제거
-            vp.Play();
-
-            if (_loadingCover != null)
-                _loadingCover.gameObject.SetActive(false);
+            // VideoFirstFrameDisplay keeps the still image until a frame is actually rendered.
+            _resumeVideo = GamePause.IsPaused;
+            if (!_resumeVideo) vp.Play();
 
             Debug.Log("Start Video");
         }
 
         private void OnVideoEnd(VideoPlayer vp)
         {
+            if (_videoEnded || _hasTransitioned) return;
+            _videoEnded = true;
+            _resumeVideo = false;
             if (_enablePlaybackDiagnostics)
             {
                 Debug.Log(
@@ -94,13 +111,9 @@ namespace Managers
                     this);
             }
 
-            if (_showButtonAfterVideo && _skipButton != null)
-            {
-                _skipButton.gameObject.SetActive(true);
-                return;
-            }
-
-            LoadNextScene();
+            _skipButton.sprite = _nextButtonIdleSprite;
+            _skipButton.gameObject.SetActive(true);
+            _nextButton.interactable = !GamePause.BlocksGameplayInput;
         }
 
         private void LoadNextScene()
@@ -120,19 +133,45 @@ namespace Managers
 
         private void Update()
         {
-            if (_allowSkip && Input.GetKeyDown(KeyCode.Space))
-            {
-                SkipVideo();
-            }
+            if (_nextButton != null)
+                _nextButton.interactable = _videoEnded && !_clickAccepted && !GamePause.BlocksGameplayInput;
         }
 
+        // Keep the existing public method name for any serialized UI callbacks.
         public void SkipVideo()
         {
-            if (_videoPlayer != null)
-            {
-                _videoPlayer.Stop();
-            }
+            if (!_videoEnded || _clickAccepted || _hasTransitioned || !isActiveAndEnabled ||
+                GamePause.BlocksGameplayInput || Input.GetKeyDown(KeyCode.Escape)) return;
+
+            _clickAccepted = true;
+            _nextButton.interactable = false;
+            _skipButton.sprite = _nextButtonClickedSprite;
+            // Leave the final video frame visible behind the clicked artwork.
+            _transitionRoutine = StartCoroutine(TransitionAfterClick());
+        }
+
+        private IEnumerator TransitionAfterClick()
+        {
+            yield return new WaitForSecondsRealtime(NextSceneDelay);
+            while (GamePause.BlocksGameplayInput) yield return null;
+            _transitionRoutine = null;
             LoadNextScene();
+        }
+
+        private void OnPauseChanged(bool paused)
+        {
+            if (_nextButton != null) _nextButton.interactable = false;
+            if (_videoPlayer == null || _videoEnded) return;
+            if (paused)
+            {
+                _resumeVideo = _videoPlayer.isPlaying;
+                if (_resumeVideo) _videoPlayer.Pause();
+            }
+            else if (_resumeVideo)
+            {
+                _resumeVideo = false;
+                _videoPlayer.Play();
+            }
         }
 
         private void SubscribePlaybackDiagnostics()
@@ -201,11 +240,7 @@ namespace Managers
                 }
             }
 
-            if (_skipButton != null)
-            {
-                var trigger = _skipButton.gameObject.GetComponent<EventTrigger>();
-                if (trigger != null) Destroy(trigger);
-            }
+            if (_nextButton != null) _nextButton.onClick.RemoveListener(SkipVideo);
         }
     }
 }

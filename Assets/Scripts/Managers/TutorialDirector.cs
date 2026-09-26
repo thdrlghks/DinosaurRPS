@@ -9,9 +9,10 @@ namespace Managers
 {
     public enum TutorialMoment { Intro, Controls, Health, Countdown, VictoryMotion = 5, ChickenDefeat, LockedReward, UnlockedReward, Complete }
 
-    /// <summary>Only the Tutorial scene owns this guided presentation.</summary>
+    /// <summary>Tutorial guidance, followed by the paper reward on entry to the quarterfinals.</summary>
     public sealed class TutorialDirector : MonoBehaviour
     {
+        [SerializeField] private bool _paperUnlockOnEntry;
         [SerializeField] private Image _paper;
         [SerializeField] private Sprite _unlockedPaper;
         [SerializeField] private RectTransform[] _controls;
@@ -34,6 +35,7 @@ namespace Managers
         private readonly Vector3[] _corners = new Vector3[4];
 
         public bool PaperUnlocked { get; private set; }
+        public bool PaperUnlockOnEntry => _paperUnlockOnEntry;
         public bool CanContinue { get; private set; }
         public TutorialMoment Moment { get; private set; }
         public int CountdownNumber { get; private set; }
@@ -79,8 +81,8 @@ namespace Managers
             Moment = TutorialMoment.Controls;
             _shade.gameObject.SetActive(true);
             _shade.SetWindows(Window(_controls));
-            Explain("1 / 2  ·  손 선택", "Q는 바위, E는 가위!",
-                "카메라가 움직일 때부터 Q 또는 E로 손을 고를 수 있어요.\n3·2·1이 끝나면 선택이 확정돼요.\n선택하지 않으면 바위 또는 가위가 랜덤으로 나와요.\n보자기 W는 닭에게 이긴 뒤 사용할 수 있어요.", new Vector2(200, 40));
+            Explain("1 / 2  ·  손 선택", "Q는 가위, E는 주먹(바위)!",
+                "카메라가 움직일 때부터 Q 또는 E로 손을 고를 수 있어요.\n3·2·1이 끝나면 선택이 확정돼요.\n선택하지 않으면 가위 또는 바위가 랜덤으로 나와요.\n보자기 W는 승리 후 영상을 보고 8강부터 사용할 수 있어요.", new Vector2(200, 40));
             await WaitForContinue("[Space]  다음", token);
 
             Moment = TutorialMoment.Health;
@@ -148,7 +150,7 @@ namespace Managers
             _body.text = "잠금 해제!  이제 W로 보자기를 낼 수 있어요.";
             await UniTask.Delay(1000, cancellationToken: token);
 
-            // Put the acquired hand back in its existing W slot.
+            // Put the acquired hand back in its W slot.
             Rect target = Window(new[] { _paper.rectTransform }, includeChildren: false, padding: 0);
             for (float elapsed = 0; elapsed < .65f; elapsed += Time.deltaTime)
             {
@@ -161,7 +163,7 @@ namespace Managers
             _reward.gameObject.SetActive(false);
             _shade.SetWindows(Window(new[] { _paper.rectTransform }));
             Moment = TutorialMoment.Complete;
-            await WaitForContinue("[Space]  다음으로", token);
+            await WaitForContinue("[Space]  8강 시작", token);
             _shade.gameObject.SetActive(false);
             _explanation.gameObject.SetActive(false);
             _continueButton.gameObject.SetActive(false);

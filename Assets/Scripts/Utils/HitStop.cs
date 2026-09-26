@@ -40,13 +40,20 @@ public class HitStop : MonoBehaviour
 
     private IEnumerator HitStopCoroutine(float duration, float timeScale)
     {
-        float originalTimeScale = Time.timeScale;
-        Time.timeScale = timeScale;
+        GamePause.SetHitStop(timeScale);
 
         // unscaledTime 사용 (timeScale이 0이어도 동작)
         yield return new WaitForSecondsRealtime(duration);
 
-        Time.timeScale = originalTimeScale;
+        GamePause.SetHitStop(null);
         _currentHitStop = null;
+    }
+
+    private void OnDisable()
+    {
+        if (_currentHitStop == null) return;
+        StopCoroutine(_currentHitStop);
+        _currentHitStop = null;
+        GamePause.SetHitStop(null);
     }
 }
