@@ -242,15 +242,15 @@ MonoBehaviour:
   _startScene: 01Start
   _start8Scene: 
   _quarterFinalsScene: QuarterFinals
-  _end80Scene: 03End80
-  _end8Scene: 04End8
+  _end80Scene: 02TutorialEnd
+  _end8Scene: 05Start4
   _start4Scene: 05Start4
   _semiFinalsScene: 06Lava
   _end4Scene: 07End4
   _start2Scene: 08Start2
   _finalRoundScene: FinalRound
   _end2Scene: 10End2
-  _tutorialScene: 02Forest
+  _tutorialScene: Tutorial
   _goodEndingScene: VictoryAnimation
   _badEndingScene: BadAnimation
   _animationSceneDisplayTime: 2

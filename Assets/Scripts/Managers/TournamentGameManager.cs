@@ -5,9 +5,9 @@ using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using DigitalRuby.LightningBolt;
 using Gameplay;
-using System.Collections.Generic;
 using System.Threading;
 using TMPro;
+using UI;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.UI;
@@ -60,6 +60,17 @@ namespace Managers
         [SerializeField] private GameObject _roundStartUIScissors;
         [SerializeField] private GameObject _balloon;
 
+        [Header("Battle Start")]
+        [SerializeField] private Sprite _battleTextSprite;
+        [SerializeField] private Sprite _battleAttackTextSprite;
+        [SerializeField, Min(0f)] private float _battleTextDuration = 0.4f;
+        [SerializeField, Min(0.12f)] private float _battleAttackDuration = 0.6f;
+        [SerializeField] private Sprite[] _countdownNumberSprites;
+
+        [Header("Match Result")]
+        [SerializeField] private Texture2D _matchResultBackground;
+        [SerializeField] private TMP_FontAsset _matchResultFont;
+
         [Header("Round Start Lightning")]
         [SerializeField] private LightningBoltScript _roundStartLightning;
         [SerializeField, Min(0.05f)] private float _roundStartLightningDuration = 0.45f;
@@ -107,8 +118,8 @@ namespace Managers
         [SerializeField, Min(0.5f)] private float _countdownStepDuration = 2.4f;
         [SerializeField, Range(0f, 1f)] private float _countdownGapDuration = 0.5f;
         [SerializeField, Range(0f, 1f)] private float _paperAdvanceDuration = 0.8f;
-        [Tooltip("\"보\" 표시 길이 배율 (0.5 = 절반). 보 뒤 말풍선(Background)도 함께 줄어듭니다.")]
-        [SerializeField, Range(0.1f, 1f)] private float _paperDurationScale = 0.5f;
+        [Tooltip("\"보\" 표시 길이 배율 (1 = 기본 길이). 보 뒤 말풍선 유지 시간은 별도로 적용됩니다.")]
+        [SerializeField, Range(0.1f, 1f)] private float _paperDurationScale = 1f;
 
         [Header("Hit Effects")]
         [SerializeField, Range(0.03f, 0.15f)] private float _hitStopDuration = 0.07f;
@@ -128,8 +139,7 @@ namespace Managers
         [Tooltip("티라노 춤 종료 후 전장 전체 샷으로 이동하는 시간")]
         [SerializeField, Min(0.1f)] private float _chickenDefeatWideShotDuration = 1.4f;
 
-        [Header("Tutorial - Sealed Hands (첫 라운드만 적용)")]
-        [SerializeField] private List<HandType> _sealedHands = new();
+        [Header("Tutorial - Paper Unlock")]
         [SerializeField] private TMP_Text _sealedWarningText;
 
         //Private Value
@@ -139,8 +149,11 @@ namespace Managers
         private IOpponentHandGenerator _opponentAI;
         private bool _canInput;
         private bool _roundInProgress;
-        private bool _isCountingDown;
         private TutorialDirector _tutorial;
+        private Image _battleStartImage;
+        private Image _roundNumberImage;
+        private MatchRecord _matchRecord;
+        private MatchResultView _matchResultView;
         private Vector3 _tyrannoOriginalPosition;
         private bool _hasTyrannoOriginalPosition;
 
@@ -256,12 +269,6 @@ namespace Managers
             _camController.SwitchCamera(_camController.sideCam);
         }
 
-        private async UniTask RestartCameraSequenceAsync()
-        {
-            if (_camController == null) return;
-            await _camController.RestartSequence();
-        }
-
         #endregion
 
         /// <summary>클립이 연출보다 짧을 때 반복 재생. 반드시 StopSfx로 끊어줘야 한다.</summary>
@@ -317,10 +324,27 @@ namespace Managers
 
         private async UniTask TournamentIntro()
         {
-            await PlayCanvasIntroAnimation();
+            var cancellationToken = this.GetCancellationTokenOnDestroy();
+            _canInput = false;
             InitializeMatch();
-            _canInput = _tutorial == null;
-            _gameHealthCanvas.gameObject.SetActive(true);
+            HideBattleUIForCinematic();
+            SwitchToIdleCamera();
+
+            if (_tutorial != null)
+            {
+                // 가이드를 먼저 읽은 뒤 기존 VS 연출과 카메라 워킹을 시작한다.
+                if (_startBackGround != null) _startBackGround.SetActive(false);
+                if (_playerCanvas != null) _playerCanvas.SetActive(false);
+                if (_opponentCanvas != null) _opponentCanvas.SetActive(false);
+                SetBattleUIVisible(true);
+                ShowRPSSelectUI();
+                await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate, cancellationToken);
+                await _tutorial.ShowGuide(cancellationToken);
+            }
+
+            SetBattleUIVisible(false);
+            await PlayCanvasIntroAnimation();
+            SetBattleUIVisible(true);
             StartRound().Forget();
         }
 
@@ -330,6 +354,7 @@ namespace Managers
 
         private async UniTask PlayCanvasIntroAnimation()
         {
+            if (_startBackGround != null) _startBackGround.SetActive(true);
             var playerRect = _playerCanvas.GetComponent<RectTransform>();
             var opponentRect = _opponentCanvas.GetComponent<RectTransform>();
             var playerFinalPos = Vector2.zero;
@@ -491,7 +516,7 @@ namespace Managers
 
         private void HandleInput()
         {
-            if (!_canInput && !_isCountingDown) return;
+            if (!_canInput || Time.timeScale <= 0f) return;
 
             if (Input.GetKeyDown(KeyCode.Q))
             {
@@ -525,8 +550,8 @@ namespace Managers
 
         private bool IsHandSealed(HandType hand)
         {
-            if (_tutorial != null) return hand == HandType.Paper && !_tutorial.PaperUnlocked;
-            return _matchData.TotalRounds == 0 && _sealedHands.Contains(hand);
+            // 손 잠금은 닭 튜토리얼의 보자기 해금 전까지만 적용한다.
+            return _tutorial != null && hand == HandType.Paper && !_tutorial.PaperUnlocked;
         }
 
         private CancellationTokenSource _warningCts;
@@ -553,9 +578,8 @@ namespace Managers
 
         private void SelectHand(HandType handType)
         {
-            Debug.Log($"SelectHand called - handType: {handType}, canInput: {_canInput}, isCountingDown: {_isCountingDown}");
-            if (!_isCountingDown && !_canInput) return;
-            if (_tutorial != null && (Time.timeScale <= 0f || IsHandSealed(handType))) return;
+            Debug.Log($"SelectHand called - handType: {handType}, canInput: {_canInput}");
+            if (!_canInput || Time.timeScale <= 0f || IsHandSealed(handType)) return;
 
             _selectedHand = handType;
             PlaySfx(SfxId.HandSelect);
@@ -578,79 +602,167 @@ namespace Managers
 
         private async UniTask StartCountdownAndBattle(CancellationToken cancellationToken)
         {
-            _isCountingDown = _tutorial == null;
-            _canInput = false;
             _selectedHand = null;
-
-            _balloon.SetActive(true);
             ShowRPSSelectUI();
+            _canInput = true;
 
-            var countdownTask = ExecuteCountdownAnimations(cancellationToken);
-
-            await countdownTask;
-
-            if (_tutorial != null)
+            if (_camController != null)
             {
-                // Preserve the chant and camera introduction before showing 3.
+                _camController.RestoreCinemachine();
+                _camController.BeginIntroSequence(skipInitialWait: true, waitForChant: true);
+            }
+
+            try
+            {
+                if (_balloon != null) _balloon.SetActive(true);
+                await ExecuteCountdownAnimations(cancellationToken);
+
+                // 구호가 끝난 뒤에만 위쪽 구도로 이동하고, 도착한 자리에서 숫자를 센다.
                 if (_camController != null)
+                {
+                    _camController.AllowIntroZoomOut();
                     await UniTask.WaitUntil(() => _camController.IntroSequenceComplete, cancellationToken: cancellationToken);
-                // Settle on the existing wide battle camera for the explanation.
-                SwitchToIdleCamera();
-                await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate, cancellationToken);
-                var brain = Camera.main != null ? Camera.main.GetComponent<CinemachineBrain>() : null;
-                if (brain != null)
-                    await UniTask.WaitUntil(() => !brain.IsBlending, cancellationToken: cancellationToken);
-                await _tutorial.ShowThreeAndGuide(cancellationToken);
-                _isCountingDown = true;
-                await _tutorial.RunNumberCountdown(cancellationToken);
+                    await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate, cancellationToken);
+                    var brain = Camera.main != null ? Camera.main.GetComponent<CinemachineBrain>() : null;
+                    if (brain != null)
+                        await UniTask.WaitUntil(() => !brain.IsBlending, cancellationToken: cancellationToken);
+                }
+
+                await RunRoundNumberCountdown(cancellationToken);
             }
-
-            _isCountingDown = false;
-
-            if (_tutorial != null && !_selectedHand.HasValue)
+            finally
             {
-                HideBattleUIForCinematic();
-                SetHealthUIVisible(true);
-                SwitchToIdleCamera();
-                PlaySfx(SfxId.RoundLose);
-                SetTriggerIfConfigured(_playerAnimator, _playerLoseTrigger);
-                _uiManager.UpdateVictoryScore(0, 1);
-                await _tutorial.ShowForfeit(cancellationToken);
-                StopResultSfx();
-                ResetAnimations();
-                _opponentAnimator.Play("chickenIdle", 0, 0f);
-                _uiManager.UpdateVictoryScore(_matchData.PlayerWins, _matchData.OpponentWins);
-                SetBattleUIVisible(true);
-                _roundInProgress = false;
-                StartRound().Forget();
-                return;
+                _canInput = false;
             }
 
+            await PlayBattleStart(cancellationToken);
+
+            // 워킹/카운트다운 중 고른 손은 유지한다. 미입력일 때만 추가 선택을 기다린다.
             if (!_selectedHand.HasValue)
             {
-                var available = new List<HandType>();
-                foreach (HandType hand in System.Enum.GetValues(typeof(HandType)))
+                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+                _canInput = true;
+                try
                 {
-                    if (!IsHandSealed(hand)) available.Add(hand);
+                    await UniTask.WaitUntil(() => _selectedHand.HasValue, cancellationToken: cancellationToken);
                 }
-                _selectedHand = available[Random.Range(0, available.Count)];
+                finally
+                {
+                    _canInput = false;
+                }
             }
 
             HighlightRPSSelection(_selectedHand.Value);
             PlayRPSSelectionPop(_selectedHand.Value);
-            await ProcessRound(_selectedHand.Value, cancellationToken);
+            bool startNextRound = await ProcessRound(_selectedHand.Value, cancellationToken);
 
             _selectedHand = null;
             _roundInProgress = false;
+            if (startNextRound) StartRound().Forget();
         }
 
         #endregion
+
+        private async UniTask RunRoundNumberCountdown(CancellationToken cancellationToken)
+        {
+            if (_tutorial != null)
+            {
+                await _tutorial.RunNumberCountdown(cancellationToken);
+                return;
+            }
+
+            if (_rpsSelectCanvas == null || _countdownNumberSprites == null || _countdownNumberSprites.Length < 3)
+                return;
+
+            if (_roundNumberImage == null)
+            {
+                var number = new GameObject("Round Countdown", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                number.layer = _rpsSelectCanvas.layer;
+                number.transform.SetParent(_rpsSelectCanvas.transform, false);
+                _roundNumberImage = number.GetComponent<Image>();
+                _roundNumberImage.raycastTarget = false;
+                _roundNumberImage.preserveAspect = true;
+                _roundNumberImage.rectTransform.anchoredPosition = new Vector2(0f, 80f);
+                _roundNumberImage.rectTransform.sizeDelta = new Vector2(150f, 195f);
+            }
+
+            _roundNumberImage.transform.SetAsLastSibling();
+            _roundNumberImage.gameObject.SetActive(true);
+            try
+            {
+                for (int index = 0; index < 3; index++)
+                {
+                    _roundNumberImage.sprite = _countdownNumberSprites[index];
+                    await UniTask.Delay(1200, cancellationToken: cancellationToken);
+                }
+            }
+            finally
+            {
+                if (_roundNumberImage != null) _roundNumberImage.gameObject.SetActive(false);
+            }
+        }
+
+        private async UniTask PlayBattleStart(CancellationToken cancellationToken)
+        {
+            if (_rpsSelectCanvas == null || _battleTextSprite == null || _battleAttackTextSprite == null)
+                return;
+
+            if (_battleStartImage == null)
+            {
+                var banner = new GameObject("Battle Start", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                banner.layer = _rpsSelectCanvas.layer;
+                banner.transform.SetParent(_rpsSelectCanvas.transform, false);
+                _battleStartImage = banner.GetComponent<Image>();
+                _battleStartImage.raycastTarget = false;
+                _battleStartImage.preserveAspect = true;
+                var bannerRect = _battleStartImage.rectTransform;
+                bannerRect.anchorMin = Vector2.zero;
+                bannerRect.anchorMax = Vector2.one;
+                bannerRect.offsetMin = bannerRect.offsetMax = Vector2.zero;
+            }
+
+            var rect = _battleStartImage.rectTransform;
+            rect.SetAsLastSibling();
+            rect.localScale = Vector3.one;
+            _battleStartImage.color = Color.white;
+            _battleStartImage.sprite = _battleTextSprite;
+            _battleStartImage.gameObject.SetActive(true);
+
+            try
+            {
+                await DelayIfNeeded(_battleTextDuration, cancellationToken);
+
+                // 두 PNG의 글자 위치가 같다. 같은 Image를 교체해 할퀸 자국을 찍는다.
+                _battleStartImage.sprite = _battleAttackTextSprite;
+                for (float elapsed = 0f; elapsed < _battleAttackDuration; elapsed += Time.deltaTime)
+                {
+                    rect.localScale = Vector3.one * Mathf.Lerp(1.06f, 1f, Mathf.Clamp01(elapsed / 0.12f));
+                    await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+                }
+
+                rect.localScale = Vector3.one;
+                for (float elapsed = 0f; elapsed < 0.15f; elapsed += Time.deltaTime)
+                {
+                    _battleStartImage.color = new Color(1f, 1f, 1f, 1f - elapsed / 0.15f);
+                    await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+                }
+            }
+            finally
+            {
+                if (_battleStartImage != null)
+                {
+                    _battleStartImage.gameObject.SetActive(false);
+                    _battleStartImage.color = Color.white;
+                    _battleStartImage.rectTransform.localScale = Vector3.one;
+                }
+            }
+        }
 
         #region ExecuteCountdownAnimations
 
         private async UniTask ExecuteCountdownAnimations(CancellationToken cancellationToken)
         {
-            // 구호 클립(2.59초)이 카운트다운 UI(약 5.5초)보다 짧아서 일단 반복으로 채운다.
+            // 구호 클립이 가위·바위·보 표시보다 짧으므로 표시가 끝날 때까지 반복한다.
             // 취소로 빠져나가도 소리가 남지 않도록 finally에서 반드시 끊는다.
             PlayLoopSfx(SfxId.CountdownChant);
             try
@@ -731,7 +843,11 @@ namespace Managers
         private void InitializeMatch()
         {
             _matchData.SetStage(_currentStage);
-            BattleHistoryManager.Instance?.StartNewMatch(_currentStage);
+            var history = BattleHistoryManager.Instance;
+            if (history == null)
+                history = new GameObject("BattleHistoryManager").AddComponent<BattleHistoryManager>();
+            history.StartNewMatch(_currentStage);
+            _matchRecord = history.CurrentMatch;
 
             if (_uiManager != null)
             {
@@ -764,7 +880,7 @@ namespace Managers
 
         #region ProcessRound
 
-        private async UniTask ProcessRound(HandType playerHand, CancellationToken cancellationToken)
+        private async UniTask<bool> ProcessRound(HandType playerHand, CancellationToken cancellationToken)
         {
             _canInput = false;
             var opponentHand = GenerateOpponentHand(playerHand);
@@ -790,11 +906,7 @@ namespace Managers
                 await UniTask.Delay(300, cancellationToken: cancellationToken);
 
                 ResetAnimations();
-                _roundInProgress = false;
-                _canInput = true;
-                StartRound().Forget();
-                await RestartCameraSequenceAsync();
-                return;
+                return true;
             }
 
             // === MainCamera를 결과 좌표로 직접 이동 ===
@@ -922,9 +1034,9 @@ namespace Managers
                 ResetRPSColors();
                 SetBattleUIVisible(true);
                 await _tutorial.UnlockPaper(cancellationToken);
-                _roundInProgress = false;
+                await ShowMatchResult(cancellationToken);
                 SceneController.Instance.LoadScene("02TutorialEnd");
-                return;
+                return false;
             }
 
             // 연출 끝 → 상시 HUD(체력바 / QWE) 복구.
@@ -962,14 +1074,10 @@ namespace Managers
             if (_matchData.IsMatchOver())
             {
                 await HandleMatchEnd(cancellationToken);
+                return false;
             }
-            else
-            {
-                _roundInProgress = false;
-                _canInput = true;
-                StartRound().Forget();
-                await RestartCameraSequenceAsync();
-            }
+
+            return true;
         }
 
         private void ApplyHandCamPositions(HandType playerHand, HandType opponentHand)
@@ -1039,8 +1147,9 @@ namespace Managers
         {
             if (_tyrannoHandCamera != null) _tyrannoHandCamera.enabled = enabled;
             if (_chickenHandCamera != null) _chickenHandCamera.enabled = enabled;
-            if (_tyrannoHandLight != null) _tyrannoHandLight.enabled = enabled;
-            if (_chickenHandLight != null) _chickenHandLight.enabled = enabled;
+            // 손 카메라는 기존 씬 조명으로만 촬영한다. 확대용 보조 조명은 사용하지 않는다.
+            if (_tyrannoHandLight != null) _tyrannoHandLight.enabled = false;
+            if (_chickenHandLight != null) _chickenHandLight.enabled = false;
         }
 
         private async UniTask ShowHandResultPreview(
@@ -1755,6 +1864,9 @@ namespace Managers
             if (_rpsSelectCanvas != null)
                 _rpsSelectCanvas.SetActive(true);
 
+            if (_tutorial == null && _rpsPaperImage != null)
+                _rpsPaperImage.gameObject.SetActive(true);
+
             ResetRPSColors();
         }
 
@@ -1791,6 +1903,8 @@ namespace Managers
             if (_roundStartUIScissors != null) _roundStartUIScissors.SetActive(false);
             if (_roundStartUIRock != null) _roundStartUIRock.SetActive(false);
             if (_roundStartUIPaper != null) _roundStartUIPaper.SetActive(false);
+            if (_battleStartImage != null) _battleStartImage.gameObject.SetActive(false);
+            if (_roundNumberImage != null) _roundNumberImage.gameObject.SetActive(false);
             if (_sealedWarningText != null) _sealedWarningText.gameObject.SetActive(false);
             if (_cameraCanvas != null) _cameraCanvas.SetActive(false);
 
@@ -1995,11 +2109,33 @@ namespace Managers
 
             await UniTask.Delay(2000, cancellationToken: cancellationToken);
 
+            await ShowMatchResult(cancellationToken);
+
             if (SceneController.Instance != null)
             {
                 SceneController.Instance.HandleTournamentResult(
                     winner == GameResult.Win, _currentStage);
             }
+        }
+
+        private async UniTask ShowMatchResult(CancellationToken cancellationToken)
+        {
+            _canInput = false;
+            HideBattleUIForCinematic();
+            SetHandCamerasEnabled(false);
+
+            if (_matchResultView == null)
+                _matchResultView = gameObject.AddComponent<MatchResultView>();
+
+            // 결과창의 손 표시는 잠금/선택 강조를 제외한 원래 스프라이트를 사용한다.
+            var handSprites = new[]
+            {
+                _rpsRockImage != null ? _rpsRockImage.sprite : null,
+                _rpsPaperImage != null ? _rpsPaperImage.sprite : null,
+                _rpsScissorsImage != null ? _rpsScissorsImage.sprite : null
+            };
+            await _matchResultView.ShowAsync(_matchRecord, _matchResultBackground, _matchResultFont,
+                handSprites, handSprites, cancellationToken);
         }
 
         #endregion

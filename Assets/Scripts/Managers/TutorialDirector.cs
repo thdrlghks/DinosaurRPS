@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 namespace Managers
 {
-    public enum TutorialMoment { Intro, Controls, Health, Countdown, Forfeit, VictoryMotion, ChickenDefeat, LockedReward, UnlockedReward, Complete }
+    public enum TutorialMoment { Intro, Controls, Health, Countdown, VictoryMotion = 5, ChickenDefeat, LockedReward, UnlockedReward, Complete }
 
     /// <summary>Only the Tutorial scene owns this guided presentation.</summary>
     public sealed class TutorialDirector : MonoBehaviour
@@ -35,7 +35,6 @@ namespace Managers
 
         public bool PaperUnlocked { get; private set; }
         public bool CanContinue { get; private set; }
-        public int Forfeits { get; private set; }
         public TutorialMoment Moment { get; private set; }
         public int CountdownNumber { get; private set; }
 
@@ -57,6 +56,7 @@ namespace Managers
 
         private void LateUpdate()
         {
+            if (_shade == null || !_shade.gameObject.activeInHierarchy) return;
             // Compute windows from the existing UI, including its key labels.
             // This keeps them aligned when resolution or canvas scaling changes.
             if (Moment == TutorialMoment.Controls)
@@ -72,31 +72,27 @@ namespace Managers
             if (CanContinue && Time.timeScale > 0f) _advance = true;
         }
 
-        public async UniTask ShowThreeAndGuide(CancellationToken token)
+        public async UniTask ShowGuide(CancellationToken token)
         {
-            SetNumber(3);
             if (_guideShown) return;
-            await UniTask.Delay(300, cancellationToken: token);
-            _number.rectTransform.anchoredPosition = new Vector2(0, 300);
-            _number.rectTransform.sizeDelta = new Vector2(100, 130);
 
             Moment = TutorialMoment.Controls;
             _shade.gameObject.SetActive(true);
             _shade.SetWindows(Window(_controls));
             Explain("1 / 2  ·  손 선택", "Q는 바위, E는 가위!",
-                "카운트가 끝나기 전에 키를 눌러 손을 선택하세요.\n선택하지 않으면 이번 라운드는 실격패!\n보자기 W는 닭에게 이긴 뒤 사용할 수 있어요.", new Vector2(200, 40));
+                "카메라가 움직일 때부터 Q 또는 E로 손을 고를 수 있어요.\n3·2·1이 끝나면 선택이 확정돼요.\n보자기 W는 닭에게 이긴 뒤 사용할 수 있어요.", new Vector2(200, 40));
             await WaitForContinue("[Space]  다음", token);
 
             Moment = TutorialMoment.Health;
             _shade.SetWindows(Window(_playerHud), Window(_enemyHud));
             Explain("2 / 2  ·  대결 상황", "체력과 승리 포인트",
-                "왼쪽은 내 체력, 오른쪽은 상대의 체력이에요.\n라운드에서 이기면 위의 승리 포인트가 채워져요.\n이제 Q 또는 E로 손을 골라 보세요!", new Vector2(0, -70));
+                "왼쪽은 내 체력, 오른쪽은 상대의 체력이에요.\n라운드에서 이기면 위의 승리 포인트가 채워져요.\n카메라 워킹과 3·2·1 동안 Q 또는 E로 손을 골라 보세요!", new Vector2(0, -70));
             await WaitForContinue("[Space]  대결 시작", token);
 
             _guideShown = true;
             _explanation.gameObject.SetActive(false);
             _shade.gameObject.SetActive(false);
-            Moment = TutorialMoment.Countdown;
+            Moment = TutorialMoment.Intro;
         }
 
         public async UniTask RunNumberCountdown(CancellationToken token)
@@ -111,20 +107,6 @@ namespace Managers
             }
             _number.gameObject.SetActive(false);
             CountdownNumber = 0;
-        }
-
-        public async UniTask ShowForfeit(CancellationToken token)
-        {
-            Moment = TutorialMoment.Forfeit;
-            Forfeits++;
-            // Leave the character visible while its existing Lose clip plays.
-            Explain("이번 라운드 패배", "실격패",
-                "시간 안에 손을 선택하지 않았어요.\nQ 또는 E를 눌러 다시 도전해 보세요.", new Vector2(300, 50));
-            _continueButton.gameObject.SetActive(false);
-            await UniTask.Delay(2200, cancellationToken: token);
-            await WaitForContinue("[Space]  다시 도전", token);
-            _explanation.gameObject.SetActive(false);
-            Moment = TutorialMoment.Intro;
         }
 
         public void MarkVictoryMotion() => Moment = TutorialMoment.VictoryMotion;
@@ -180,6 +162,9 @@ namespace Managers
             _shade.SetWindows(Window(new[] { _paper.rectTransform }));
             Moment = TutorialMoment.Complete;
             await WaitForContinue("[Space]  다음으로", token);
+            _shade.gameObject.SetActive(false);
+            _explanation.gameObject.SetActive(false);
+            _continueButton.gameObject.SetActive(false);
         }
 
         private void SetNumber(int number)

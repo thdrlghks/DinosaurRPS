@@ -19,6 +19,9 @@ public class CameraManager : MonoBehaviour
     }
 
     bool isStartBattle = true;
+    [SerializeField] private bool _playIntroOnStart = true;
+    private Coroutine _introSequence;
+    private bool _introZoomOutAllowed;
     public CinemachineCamera introPlayerCam;
     public CinemachineCamera introEnemyCam;
     public CinemachineCamera introZoomOutCam;
@@ -64,8 +67,22 @@ public class CameraManager : MonoBehaviour
     {
         _mainCamera = Camera.main;
         isStartBattle = true;
-        StartCoroutine(PlayFullIntroSequence());
+        if (_playIntroOnStart)
+            BeginIntroSequence();
+        else
+            SwitchCamera(idleCam);
     }
+
+    public void BeginIntroSequence(bool skipInitialWait = false, bool waitForChant = false)
+    {
+        if (_introSequence != null) StopCoroutine(_introSequence);
+        if (skipInitialWait) isStartBattle = false;
+        _introZoomOutAllowed = !waitForChant;
+        IntroSequenceComplete = false;
+        _introSequence = StartCoroutine(PlayFullIntroSequence());
+    }
+
+    public void AllowIntroZoomOut() => _introZoomOutAllowed = true;
 
     IEnumerator PlayFullIntroSequence()
     {
@@ -87,14 +104,17 @@ public class CameraManager : MonoBehaviour
         yield return StartCoroutine(MoveAlongSpline(introEnemyCam, introDuration));
         yield return new WaitForSeconds(waitTime);
 
-        // 4. paper zoom out
-        SwitchCamera(introZoomOutCam);
+        // 구호가 끝난 뒤 기존 스플라인을 따라 위쪽 구도로 이동한다.
+        yield return new WaitUntil(() => _introZoomOutAllowed);
+        if (holdBeforeZoomOut > 0f) yield return new WaitForSeconds(holdBeforeZoomOut);
+        yield return StartCoroutine(MoveAlongSpline(introZoomOutCam, zoomOutDuration));
         IntroSequenceComplete = true;
         
     }
 
     IEnumerator MoveAlongSpline(CinemachineCamera cam, float duration)
     {
+        if (cam == null) yield break;
         SwitchCamera(cam);
         var splineDolly = cam.GetComponent<CinemachineSplineDolly>();
         var settings = cam.GetComponent<CameraMoveSettings>(); // Ŀ��
@@ -413,7 +433,7 @@ public class CameraManager : MonoBehaviour
         await Task.Delay(100);
 
         StopAllCoroutines();
-        StartCoroutine(PlayFullIntroSequence());
+        BeginIntroSequence(skipInitialWait: true);
     }
 
 }

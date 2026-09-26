@@ -1871,6 +1871,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3da5a6f90908edd4bab3a9b3c35f46bb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraManager
+  _playIntroOnStart: 0
   introPlayerCam: {fileID: 329857051}
   introEnemyCam: {fileID: 1064252724}
   introZoomOutCam: {fileID: 861341916}
@@ -12198,6 +12199,16 @@ MonoBehaviour:
   _roundStartUIPaper: {fileID: 1843210469}
   _roundStartUIScissors: {fileID: 1131942537}
   _balloon: {fileID: 182900041}
+  _battleTextSprite: {fileID: 21300000, guid: 52d0569a81b36d04094270c3c56fd3a7, type: 3}
+  _battleAttackTextSprite: {fileID: 21300000, guid: 27df50241fc3ebd4a9c60b1f8f5f628d, type: 3}
+  _battleTextDuration: 0.4
+  _battleAttackDuration: 0.6
+  _matchResultBackground: {fileID: 2800000, guid: 212b528097c36614cb76275d10130d90, type: 3}
+  _matchResultFont: {fileID: 11400000, guid: 79d0458a7d99d014c8f9ef7c13113d86, type: 2}
+  _countdownNumberSprites:
+  - {fileID: 46185466, guid: f55a53039f0b60b4eae15ebc68a04c73, type: 3}
+  - {fileID: -997004465, guid: efc73e3fa338f684bb6168463a28e96e, type: 3}
+  - {fileID: 488384204, guid: f6fddd98ee98e1543a36e1f944208fbb, type: 3}
   _roundStartLightning: {fileID: 1186521953}
   _roundStartLightningDuration: 0.45
   _roundStartLightningPulseInterval: 0.07
@@ -12227,7 +12238,7 @@ MonoBehaviour:
   _countdownStepDuration: 2
   _countdownGapDuration: 0.3
   _paperAdvanceDuration: 0.5
-  _paperDurationScale: 0.5
+  _paperDurationScale: 1
   _hitStopDuration: 0.07
   _shakeMultiplier: 1
   _chickenDefeatHeight: 3
@@ -12236,7 +12247,6 @@ MonoBehaviour:
   _chickenDefeatLandingY: 0
   _chickenDefeatZRotation: -90
   _chickenDefeatWideShotDuration: 1.4
-  _sealedHands: 01000000
   _sealedWarningText: {fileID: 0}
 --- !u!4 &2043612405
 Transform:

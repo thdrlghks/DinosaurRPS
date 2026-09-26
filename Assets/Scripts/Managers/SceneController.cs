@@ -28,9 +28,9 @@ namespace Managers
 
         [Header("Scene Names")]
         // 전체 흐름:
-        // 00MainMenu →(StartGame) 01Start(오프닝) →영상→ 02Forest(튜토리얼)
-        //   →승리→ 03End80(닭 패배) →영상→ QuarterFinals(8강)
-        //   →승리→ 04End8 →영상→ 05Start4 →영상→ 06Lava(4강)
+        // 00MainMenu →(StartGame) 01Start(오프닝) →영상→ Tutorial(튜토리얼)
+        //   →승리→ 02TutorialEnd(닭 패배) →영상→ QuarterFinals(8강)
+        //   →승리→ 05Start4(4강 시작) →영상→ 06Lava(4강)
         //   →승리→ 07End4 →영상→ 08Start2 →영상→ FinalRound(결승)
         //   →승리→ 10End2 →영상→ VictoryAnimation(굿 엔딩)
         //   →결승 패배→ BadAnimation(배드 엔딩)
@@ -39,10 +39,10 @@ namespace Managers
         [SerializeField] private string _mainMenuScene = "00MainMenu";
         [SerializeField] private string _startScene = "01Start";           // 오프닝 컷신
         [Tooltip("닭 튜토리얼 전투 씬 (TournamentStage.Qualifiers)")]
-        [SerializeField] private string _tutorialScene = "02Forest";
+        [SerializeField] private string _tutorialScene = "Tutorial";
         [SerializeField] private string _quarterFinalsScene = "QuarterFinals"; // 8강 전투
-        [SerializeField] private string _end80Scene = "03End80";           // 닭 패배 컷신
-        [SerializeField] private string _end8Scene = "04End8";             // 8강 승리 컷신
+        [SerializeField] private string _end80Scene = "02TutorialEnd";     // 닭 패배 컷신
+        [SerializeField] private string _end8Scene = "05Start4";           // 8강 승리 후 4강 시작 컷신
         [SerializeField] private string _start4Scene = "05Start4";         // 4강 시작 컷신
         [SerializeField] private string _semiFinalsScene = "06Lava";       // 4강 전투
         [SerializeField] private string _end4Scene = "07End4";             // 4강 승리 컷신
@@ -155,7 +155,7 @@ namespace Managers
         
         /// <summary>
         /// 00MainMenu에서 게임 시작 시 호출 - 01Start(오프닝 컷신)로 이동.
-        /// 이후 01Start → 02Forest(튜토리얼) 전환은 01Start의 VideoSceneTransition이 담당한다.
+        /// 이후 01Start → Tutorial(튜토리얼) 전환은 01Start의 VideoSceneTransition이 담당한다.
         /// </summary>
         public void StartGame()
         {
@@ -180,7 +180,7 @@ namespace Managers
         {
             string sceneName = stage switch
             {
-                TournamentStage.Qualifiers => _tutorialScene,          // 02Forest (튜토리얼)
+                TournamentStage.Qualifiers => _tutorialScene,          // Tutorial (튜토리얼)
                 TournamentStage.QuarterFinals => _quarterFinalsScene,  // QuarterFinals (8강)
                 TournamentStage.SemiFinals => _semiFinalsScene,        // 06Lava (4강)
                 TournamentStage.Finals => _finalRoundScene,            // FinalRound (결승)
@@ -207,8 +207,8 @@ namespace Managers
 
         // 전투 승리 시 "다음 컷신 한 편"만 로드한다.
         // 컷신 이후 전개(다음 컷신 / 다음 전투)는 각 컷신의 VideoSceneTransition이 이어간다.
-        //   튜토리얼 승리 → 03End80(닭 패배) →영상→ QuarterFinals(8강)
-        //   8강 승리      → 04End8 →영상→ 05Start4 →영상→ 06Lava(4강)
+        //   튜토리얼 승리 → 02TutorialEnd(닭 패배) →영상→ QuarterFinals(8강)
+        //   8강 승리      → 05Start4(4강 시작) →영상→ 06Lava(4강)
         //   4강 승리      → 07End4 →영상→ 08Start2 →영상→ FinalRound(결승)
         //   결승 승리     → 10End2(최종 승리) →영상→ VictoryAnimation(굿 엔딩)
         private IEnumerator HandleTournamentVictory(TournamentStage currentStage)
@@ -216,7 +216,7 @@ namespace Managers
             string nextScene = currentStage switch
             {
                 TournamentStage.Qualifiers    => _end80Scene, // 닭 패배 컷신
-                TournamentStage.QuarterFinals => _end8Scene,  // 8강 승리 컷신
+                TournamentStage.QuarterFinals => _end8Scene,  // 8강 승리 후 4강 시작 컷신
                 TournamentStage.SemiFinals    => _end4Scene,  // 4강 승리 컷신
                 TournamentStage.Finals        => _end2Scene,  // 최종 승리 컷신 → (영상) 굿 엔딩
                 _ => _mainMenuScene
