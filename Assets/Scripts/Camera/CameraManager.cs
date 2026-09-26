@@ -42,6 +42,11 @@ public class CameraManager : MonoBehaviour
 
     public float holdBeforeZoomOut = 0f;
 
+    [Tooltip("줌아웃하면서 간판에서 경기장 쪽으로 옮길 시선 오프셋")]
+    [SerializeField] private Vector3 _introZoomOutLookOffset = new Vector3(-6.5f, -3.5f, 0f);
+    private CinemachineRotationComposer _introZoomOutComposer;
+    private Vector3 _introZoomOutOriginalTargetOffset;
+
     public CameraShake cameraShake;
 
     [Header("카메라 전환 페이드")]
@@ -61,6 +66,7 @@ public class CameraManager : MonoBehaviour
     private Camera _mainCamera;
 
     private float waitTime = 0.8f;
+    public bool IntroPaperShotReady { get; private set; }
     public bool IntroSequenceComplete { get; private set; }
 
     void Start()
@@ -78,6 +84,7 @@ public class CameraManager : MonoBehaviour
         if (_introSequence != null) StopCoroutine(_introSequence);
         if (skipInitialWait) isStartBattle = false;
         _introZoomOutAllowed = !waitForChant;
+        IntroPaperShotReady = false;
         IntroSequenceComplete = false;
         _introSequence = StartCoroutine(PlayFullIntroSequence());
     }
@@ -104,7 +111,21 @@ public class CameraManager : MonoBehaviour
         yield return StartCoroutine(MoveAlongSpline(introEnemyCam, introDuration));
         yield return new WaitForSeconds(waitTime);
 
-        // 구호가 끝난 뒤 기존 스플라인을 따라 위쪽 구도로 이동한다.
+        // "보"는 천하제일동물대회 앞 구도에서 보여 주고, 줌아웃은 구호가 끝난 뒤 시작한다.
+        if (introZoomOutCam != null)
+        {
+            var splineDolly = introZoomOutCam.GetComponent<CinemachineSplineDolly>();
+            if (splineDolly != null) splineDolly.CameraPosition = 0f;
+            UpdateIntroZoomOutFraming(0f);
+            SwitchCamera(introZoomOutCam);
+
+            // Cinemachine이 새 구도를 반영하고 블렌드를 마친 뒤 표시를 허용한다.
+            yield return null;
+            var brain = Camera.main != null ? Camera.main.GetComponent<CinemachineBrain>() : null;
+            if (brain != null) yield return new WaitUntil(() => !brain.IsBlending);
+        }
+        IntroPaperShotReady = true;
+
         yield return new WaitUntil(() => _introZoomOutAllowed);
         if (holdBeforeZoomOut > 0f) yield return new WaitForSeconds(holdBeforeZoomOut);
         yield return StartCoroutine(MoveAlongSpline(introZoomOutCam, zoomOutDuration));
@@ -135,12 +156,30 @@ public class CameraManager : MonoBehaviour
                     curveValue = settings.moveCurve.Evaluate(t);
                 //Debug.Log($"CurveValue: {curveValue}");
                 splineDolly.CameraPosition = curveValue;
+                if (cam == introZoomOutCam) UpdateIntroZoomOutFraming(curveValue);
 
                 yield return null;
             }
             splineDolly.CameraPosition = 1f;
+            if (cam == introZoomOutCam) UpdateIntroZoomOutFraming(1f);
         }
     }
+
+    private void UpdateIntroZoomOutFraming(float progress)
+    {
+        if (introZoomOutCam == null) return;
+        if (_introZoomOutComposer == null)
+        {
+            _introZoomOutComposer = introZoomOutCam.GetComponent<CinemachineRotationComposer>();
+            if (_introZoomOutComposer == null) return;
+            _introZoomOutOriginalTargetOffset = _introZoomOutComposer.TargetOffset;
+        }
+
+        // "보"에서는 간판을 유지하고, 뒤로 빠질수록 닭과 티라노가 보이게 내려다본다.
+        _introZoomOutComposer.TargetOffset = _introZoomOutOriginalTargetOffset
+            + _introZoomOutLookOffset * Mathf.SmoothStep(0f, 1f, progress);
+    }
+
     private async UniTask MoveAlongSplineAsync(
     CinemachineCamera cam,
     float duration,

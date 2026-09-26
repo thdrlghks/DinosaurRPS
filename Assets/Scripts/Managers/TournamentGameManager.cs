@@ -71,16 +71,15 @@ namespace Managers
         [SerializeField] private Texture2D _matchResultBackground;
         [SerializeField] private TMP_FontAsset _matchResultFont;
 
-        [Header("Round Start Lightning")]
-        [SerializeField] private LightningBoltScript _roundStartLightning;
-        [SerializeField, Min(0.05f)] private float _roundStartLightningDuration = 0.45f;
-        [SerializeField, Min(0.01f)] private float _roundStartLightningPulseInterval = 0.07f;
+        [Header("VS Intro Fire")]
+        [SerializeField] private Texture2D _roundStartFlameTexture;
+        [SerializeField] private Texture2D _roundStartEmberTexture;
+        [SerializeField, Range(0.4f, 1.8f)] private float _roundStartFireDuration = 1.2f;
 
-        [Tooltip("번개 전용 카메라. 번개가 나오는 순간에만 켜진다 (1920x1080 RT라 상시 렌더링하면 비싸다).")]
-        [SerializeField] private Camera _roundStartLightningCamera;
-
-        [Tooltip("번개 RenderTexture를 화면에 합성하는 RawImage 오브젝트.")]
-        [SerializeField] private GameObject _roundStartLightningView;
+        // Keep existing scene references so the old render rig can be disabled.
+        [SerializeField, HideInInspector] private LightningBoltScript _roundStartLightning;
+        [SerializeField, HideInInspector] private Camera _roundStartLightningCamera;
+        [SerializeField, HideInInspector] private GameObject _roundStartLightningView;
 
         [Header("Audio")]
         [Tooltip("승/패 사운드를 모션 종료 시점에 끊을 때의 페이드아웃 길이. 0이면 즉시 정지.")]
@@ -226,14 +225,9 @@ namespace Managers
             if (_tyrannoHandCam != null) _tyrannoHandCamera = _tyrannoHandCam.GetComponentInChildren<Camera>(true);
             if (_chickenHandCam != null) _chickenHandCamera = _chickenHandCam.GetComponentInChildren<Camera>(true);
 
-            // 번개를 비추는 건 전용 직교 카메라다. 이걸 알려주지 않으면
-            // LightningBoltScript가 Camera.main(원근)을 기준으로 삼아 번개가 3D로 흩어진다.
-            if (_roundStartLightning != null && _roundStartLightningCamera != null)
-                _roundStartLightning.RenderCamera = _roundStartLightningCamera;
-
             // 씬에서 꺼둔 상태를 시작 기준으로 삼는다. 손 공개 구간에만 켜진다.
             SetHandCamerasEnabled(false);
-            SetRoundStartLightningVisible(false);
+            DisableLegacyIntroLightning();
 
             CaptureRPSOriginalScales();
         }
@@ -396,9 +390,11 @@ namespace Managers
                 await UniTask.Yield();
             }
 
-            // Both intro panels have reached the center. Play the impact lightning now,
-            // while the existing meet-time pause keeps the VS composition on screen.
-            PlayRoundStartLightning(this.GetCancellationTokenOnDestroy()).Forget();
+            // 두 캐릭터가 중앙에 만나는 순간 불길과 불씨가 퍼진다.
+            IntroFireBurst.PlayAsync(
+                _playerCanvas.transform.parent as RectTransform,
+                _roundStartFlameTexture, _roundStartEmberTexture,
+                _roundStartFireDuration, this.GetCancellationTokenOnDestroy()).Forget();
 
             await UniTask.Delay((int)(meetTime * 1000));
 
@@ -433,57 +429,16 @@ namespace Managers
             RestoreColors(opponentGraphics, opponentOriginal);
         }
 
-        private async UniTask PlayRoundStartLightning(CancellationToken cancellationToken)
-        {
-            if (_roundStartLightning == null)
-            {
-                Debug.LogWarning("[TournamentGameManager] Round-start lightning is not assigned.", this);
-                return;
-            }
-
-            _roundStartLightning.ManualMode = true;
-            _roundStartLightning.Duration = Mathf.Max(
-                _roundStartLightning.Duration,
-                _roundStartLightningPulseInterval * 0.9f);
-
-            // 번개 카메라는 1920x1080 RenderTexture를 매 프레임 그린다.
-            // 이 0.45초 동안만 켜고, 끝나면 카메라와 합성용 RawImage를 함께 끈다.
-            SetRoundStartLightningVisible(true);
-            try
-            {
-                float elapsed = 0f;
-                do
-                {
-                    _roundStartLightning.Trigger();
-                    await UniTask.Delay(
-                        Mathf.Max(1, Mathf.RoundToInt(_roundStartLightningPulseInterval * 1000f)),
-                        cancellationToken: cancellationToken);
-                    elapsed += _roundStartLightningPulseInterval;
-                }
-                while (elapsed < _roundStartLightningDuration);
-            }
-            finally
-            {
-                SetRoundStartLightningVisible(false);
-            }
-        }
-
-        /// <summary>
-        /// 번개 전용 카메라와 RawImage를 함께 토글한다.
-        /// RawImage만 끄면 카메라가 계속 RT를 렌더링하고,
-        /// 카메라만 끄면 RT에 마지막 번개 프레임이 그대로 남는다.
-        /// </summary>
-        private void SetRoundStartLightningVisible(bool visible)
+        private void DisableLegacyIntroLightning()
         {
             if (_roundStartLightningCamera != null)
-                _roundStartLightningCamera.enabled = visible;
+                _roundStartLightningCamera.enabled = false;
 
             if (_roundStartLightningView != null)
-                _roundStartLightningView.SetActive(visible);
+                _roundStartLightningView.SetActive(false);
 
-            // 번개 스크립트도 같이 끈다. 켜 두면 안 보이는 동안에도 Update가 계속 돈다.
             if (_roundStartLightning != null)
-                _roundStartLightning.enabled = visible;
+                _roundStartLightning.gameObject.SetActive(false);
         }
 
         private void SetAlpha(Graphic[] graphics, float a)
@@ -617,7 +572,7 @@ namespace Managers
                 if (_balloon != null) _balloon.SetActive(true);
                 await ExecuteCountdownAnimations(cancellationToken);
 
-                // 구호가 끝난 뒤에만 위쪽 구도로 이동하고, 도착한 자리에서 숫자를 센다.
+                // "보"가 끝난 뒤에만 줌아웃하고, 도착한 자리에서 숫자를 센다.
                 if (_camController != null)
                 {
                     _camController.AllowIntroZoomOut();
@@ -635,22 +590,17 @@ namespace Managers
                 _canInput = false;
             }
 
-            await PlayBattleStart(cancellationToken);
-
-            // 워킹/카운트다운 중 고른 손은 유지한다. 미입력일 때만 추가 선택을 기다린다.
+            // 입력 시간이 끝나면 미선택 손을 확정한다. 튜토리얼에서 잠긴 보는 제외한다.
             if (!_selectedHand.HasValue)
             {
-                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
-                _canInput = true;
-                try
-                {
-                    await UniTask.WaitUntil(() => _selectedHand.HasValue, cancellationToken: cancellationToken);
-                }
-                finally
-                {
-                    _canInput = false;
-                }
+                _selectedHand = IsHandSealed(HandType.Paper)
+                    ? (Random.Range(0, 2) == 0 ? HandType.Rock : HandType.Scissors)
+                    : (HandType)Random.Range(0, 3);
+                PlaySfx(SfxId.HandSelect);
+                HighlightRPSSelection(_selectedHand.Value);
             }
+
+            await PlayBattleStart(cancellationToken);
 
             HighlightRPSSelection(_selectedHand.Value);
             PlayRPSSelectionPop(_selectedHand.Value);
@@ -807,6 +757,10 @@ namespace Managers
 
             if (_roundStartUIPaper)
             {
+                // 닭 정면 샷이 끝나고 대회 앞 구도로 전환될 때까지 "보"를 늦춘다.
+                if (_camController != null)
+                    await UniTask.WaitUntil(() => _camController.IntroPaperShotReady, cancellationToken: cancellationToken);
+
                 _roundStartUIPaper.SetActive(true);
                 await UITweenUtil.ScaleUpAndFadeOutAsync(
                     _roundStartUIPaper.transform,

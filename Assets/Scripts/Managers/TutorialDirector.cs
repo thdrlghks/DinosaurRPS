@@ -80,7 +80,7 @@ namespace Managers
             _shade.gameObject.SetActive(true);
             _shade.SetWindows(Window(_controls));
             Explain("1 / 2  ·  손 선택", "Q는 바위, E는 가위!",
-                "카메라가 움직일 때부터 Q 또는 E로 손을 고를 수 있어요.\n3·2·1이 끝나면 선택이 확정돼요.\n보자기 W는 닭에게 이긴 뒤 사용할 수 있어요.", new Vector2(200, 40));
+                "카메라가 움직일 때부터 Q 또는 E로 손을 고를 수 있어요.\n3·2·1이 끝나면 선택이 확정돼요.\n선택하지 않으면 바위 또는 가위가 랜덤으로 나와요.\n보자기 W는 닭에게 이긴 뒤 사용할 수 있어요.", new Vector2(200, 40));
             await WaitForContinue("[Space]  다음", token);
 
             Moment = TutorialMoment.Health;

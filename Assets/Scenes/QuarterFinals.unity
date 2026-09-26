@@ -11526,8 +11526,9 @@ MonoBehaviour:
   - {fileID: -997004465, guid: efc73e3fa338f684bb6168463a28e96e, type: 3}
   - {fileID: 488384204, guid: f6fddd98ee98e1543a36e1f944208fbb, type: 3}
   _roundStartLightning: {fileID: 1186521953}
-  _roundStartLightningDuration: 0.45
-  _roundStartLightningPulseInterval: 0.07
+  _roundStartFlameTexture: {fileID: 2800000, guid: bae572b8abde45b49abfe9fb73223b07, type: 3}
+  _roundStartEmberTexture: {fileID: 2800000, guid: e8bb5606fef74314e9e5e19aec6b527e, type: 3}
+  _roundStartFireDuration: 1.2
   _roundStartLightningCamera: {fileID: 772188646}
   _roundStartLightningView: {fileID: 585031150}
   _resultSfxFadeOutDuration: 0.35
