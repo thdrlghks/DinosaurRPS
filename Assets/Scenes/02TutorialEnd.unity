@@ -668,6 +668,11 @@ MonoBehaviour:
   _skipButton: {fileID: 685564813}
   _nextButtonIdleSprite: {fileID: 948145770, guid: 5ef50db3a42059746a74cb937285864d, type: 3}
   _nextButtonClickedSprite: {fileID: 606465140, guid: 4f91a5abc8fdbbc4088c3d7d87b3fffd, type: 3}
+  _handleCompletionKeyboard: 1
+  _prepareTimeout: 15
+  _playbackStallTimeout: 15
+  _mainMenuSceneName: 00MainMenu
+  _recoveryFont: {fileID: 11400000, guid: 79d0458a7d99d014c8f9ef7c13113d86, type: 2}
   _enablePlaybackDiagnostics: 1
 --- !u!328 &1117141148
 VideoPlayer:
@@ -734,6 +739,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Managers.VideoFirstFrameDisplay
   _screen: {fileID: 572523120}
   _firstFrame: {fileID: 2800000, guid: dad3830b32514fe3b6b8ed75cebd5968, type: 3}
+  _firstFrameClip: {fileID: 0}
 --- !u!1 &1323290609
 GameObject:
   m_ObjectHideFlags: 0
