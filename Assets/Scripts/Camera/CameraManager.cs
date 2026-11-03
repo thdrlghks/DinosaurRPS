@@ -233,6 +233,7 @@ public class CameraManager : MonoBehaviour
     }
     public async UniTask PlayWinSplineCamera(
     string triggerName,
+    float animationDuration,
     CancellationToken cancellationToken)
     {
         // Trigger에 맞는 카메라 Binding 찾기
@@ -270,35 +271,20 @@ public class CameraManager : MonoBehaviour
         // Spline 이동
         if (binding.moveAlongSpline)
         {
+            float duration = Mathf.Max(0.05f, animationDuration);
             float elapsed = 0f;
 
-            while (elapsed < binding.moveDuration)
+            while (elapsed < duration)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 elapsed += Time.deltaTime;
 
-                float t = Mathf.Clamp01(
-                    elapsed / binding.moveDuration);
+                float t = Mathf.Clamp01(elapsed / duration);
 
-                // 기본값은 Linear
-                float curveValue = t;
+                splineDolly.CameraPosition = t;
 
-                // 기존 CameraMoveSettings가 있다면 Curve 사용
-                CameraMoveSettings settings =
-                    binding.camera.GetComponent<CameraMoveSettings>();
-
-                if (settings != null)
-                {
-                    curveValue =
-                        settings.moveCurve.Evaluate(t);
-                }
-
-                splineDolly.CameraPosition = curveValue;
-
-                await UniTask.Yield(
-                    PlayerLoopTiming.Update,
-                    cancellationToken);
+                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
             }
 
             splineDolly.CameraPosition = 1f;

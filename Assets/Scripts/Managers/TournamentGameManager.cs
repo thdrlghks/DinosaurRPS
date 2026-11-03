@@ -5,6 +5,7 @@ using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using DigitalRuby.LightningBolt;
 using Gameplay;
+using System;
 using System.Threading;
 using TMPro;
 using UI;
@@ -18,6 +19,15 @@ namespace Managers
     public class TournamentGameManager : MonoBehaviour
     {
         #region Variables
+
+        [Header("Win Dance Test")]
+        [SerializeField] private bool _testTyrannoWinDanceOnStart = true;
+        [SerializeField] private string _testWinTrigger = "Win3";
+
+        [Header("Win Animation")]
+        [SerializeField] private float winAnimationExtraTime = 2f;
+        [SerializeField] private float animationEnterTimeout = 1.5f;
+        [SerializeField] private float animationMaxWaitTime = 15f;
 
         [Header("Game Data")] [SerializeField] private MatchData _matchData;
         [SerializeField] private TournamentStage _currentStage = TournamentStage.QuarterFinals;
@@ -182,8 +192,15 @@ namespace Managers
             public string WinnerTrigger { get; }
         }
 
-        #endregion
 
+        [Header("티라노 상승 카메라 위치 조절")]
+        [Tooltip("상승 시작 시 카메라 위치 보정값 (월드 좌표 기준)")]
+        [SerializeField] private Vector3 _tyrannoWinCameraStartOffset = Vector3.zero;
+
+        [Tooltip("티라노가 목표 높이에 도착했을 때 카메라의 추가 위치 보정값")]
+        [SerializeField] private Vector3 _tyrannoWinCameraEndOffset = Vector3.zero;
+
+        #endregion
 
         #region Component Initialization
 
@@ -314,7 +331,179 @@ namespace Managers
 
         private void Start()
         {
+            if (_testTyrannoWinDanceOnStart)
+            {
+                TestTyrannoWinDance().Forget();
+                return;
+            }
+
             TournamentIntro().Forget();
+        }
+
+        private async UniTaskVoid TestTyrannoWinDance()
+        {
+            var cancellationToken = this.GetCancellationTokenOnDestroy();
+
+            _canInput = false;
+
+            // 테스트를 반복할 때 닭의 Animator가 정지된 상태로 남지 않도록 초기화
+            if (_opponentAnimator != null)
+            {
+                _opponentAnimator.speed = 1f;
+            }
+
+            // 1. 전투 UI를 숨기고 시네마틱 상태로 진입
+            HideBattleUIForCinematic();
+            SetHandCamerasEnabled(false);
+
+            // 애니메이션 종료 감지를 위해 현재 상태를 미리 저장
+            int playerStateHashBeforeBattle =
+                GetCurrentStateHash(_playerAnimator);
+
+            int opponentStateHashBeforeBattle =
+                GetCurrentStateHash(_opponentAnimator);
+
+            // 2. 실전처럼 티라노와 카메라를 기둥 위로 상승시킴
+            await RaiseTyrannoWithCamera(cancellationToken);
+
+            // 4. 지정한 티라노 승리 모션 재생
+            if (_tutorial != null)
+            {
+                _tutorial.MarkVictoryMotion();
+            }
+
+            PlayBattleAnimations(GameResult.Win, _testWinTrigger);
+
+            // 실제 승리 애니메이션 State 진입 대기
+            int enteredStateHash = 0;
+
+            while (enteredStateHash == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!_playerAnimator.IsInTransition(AnimationLayerIndex))
+                {
+                    AnimatorStateInfo stateInfo =
+                        _playerAnimator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
+
+                    if (stateInfo.fullPathHash != playerStateHashBeforeBattle)
+                    {
+                        enteredStateHash = stateInfo.fullPathHash;
+                    }
+                }
+
+                if (enteredStateHash == 0)
+                {
+                    await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+                }
+            }
+
+            // 실제 승리 애니메이션 길이 가져오기
+            AnimatorStateInfo victoryStateInfo =
+                _playerAnimator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
+
+            // 실제 재생 중인 Animation Clip 가져오기
+            AnimatorClipInfo[] clips =
+                _playerAnimator.GetCurrentAnimatorClipInfo(AnimationLayerIndex);
+
+            if (clips.Length > 0)
+            {
+                AnimatorClipInfo clipInfo = clips[0];
+
+                // 실제 애니메이션 재생 속도 계산
+                float playbackSpeed =
+                    _playerAnimator.speed *
+                    victoryStateInfo.speed *
+                    victoryStateInfo.speedMultiplier;
+
+                // 애니메이션의 남은 진행 비율
+                float remainingProgress =
+                    Mathf.Clamp01(1f - victoryStateInfo.normalizedTime);
+
+                // 실제 클립 길이를 기준으로 남은 시간 계산
+                float actualRemainingDuration =
+                    clipInfo.clip.length *
+                    remainingProgress /
+                    Mathf.Max(0.01f, Mathf.Abs(playbackSpeed));
+
+                Debug.Log(
+                    $"[Win Dance Test] " +
+                    $"Clip: {clipInfo.clip.name}, " +
+                    $"Clip Length: {clipInfo.clip.length:F2}s, " +
+                    $"State Length: {victoryStateInfo.length:F2}s, " +
+                    $"Playback Speed: {playbackSpeed:F2}, " +
+                    $"Normalized Time: {victoryStateInfo.normalizedTime:F2}, " +
+                    $"Remaining Duration: {actualRemainingDuration:F2}s"
+                );
+
+                // Spline 카메라 실행
+                if (_camController != null)
+                {
+                    _camController.RestoreCinemachine();
+
+                    _camController.PlayWinSplineCamera(
+                        _testWinTrigger,
+                        actualRemainingDuration,
+                        cancellationToken
+                    ).Forget();
+                }
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "[Win Dance Test] 재생 중인 Animation Clip을 찾지 못했습니다."
+                );
+            }
+            // 5. 승리 모션이 끝날 때까지 대기
+            await WaitForBattleAnimationsToFinish(
+                playerStateHashBeforeBattle,
+                opponentStateHashBeforeBattle,
+                cancellationToken
+            );
+
+            StopResultSfx();
+
+            // 6. 닭의 원래 위치와 회전 저장
+            if (_opponentAnimator == null)
+            {
+                Debug.LogWarning(
+                    "[Win Dance Test] Opponent Animator가 연결되지 않았습니다."
+                );
+                return;
+            }
+
+            if (_tutorial != null)
+            {
+                _tutorial.MarkChickenDefeat();
+            }
+
+            Transform chicken = _opponentAnimator.transform;
+
+            Vector3 defaultPosition = chicken.localPosition;
+            Quaternion defaultRotation = chicken.localRotation;
+
+            // 7. 실전처럼 카메라를 닭 정면 시점으로 이동
+            await MoveCameraToChickenFront(cancellationToken);
+
+            // 8. 정면 카메라에서 닭이 위로 날아오르는 장면 재생
+            await PlayChickenDefeatHalfway(cancellationToken);
+
+            // 9. 실전처럼 사이드 카메라로 전환
+            SwitchToSideCamera();
+
+            // 닭을 원래 위치로 되돌린 후 최종 날아가는 연출 진행
+            chicken.localPosition = defaultPosition;
+            chicken.localRotation = defaultRotation;
+
+            // 10. 닭이 다시 상승한 뒤 뒤쪽으로 날아가는 장면 재생
+            await PlayChickenFinalDefeat(cancellationToken);
+
+            // 11. 실전과 동일하게 닭의 마지막 포즈 유지
+            _opponentAnimator.speed = 0f;
+
+            Debug.Log(
+                "[Win Dance Test] 티라노 승리 및 닭 패배 연출 완료"
+            );
         }
 
         #region TournamentIntro
@@ -599,8 +788,8 @@ namespace Managers
             if (!_selectedHand.HasValue)
             {
                 _selectedHand = IsHandSealed(HandType.Paper)
-                    ? (Random.Range(0, 2) == 0 ? HandType.Rock : HandType.Scissors)
-                    : (HandType)Random.Range(0, 3);
+                    ? (UnityEngine.Random.Range(0, 2) == 0 ? HandType.Rock : HandType.Scissors)
+                    : (HandType)UnityEngine.Random.Range(0, 3);
                 PlaySfx(SfxId.HandSelect);
                 HighlightRPSSelection(_selectedHand.Value);
             }
@@ -838,7 +1027,44 @@ namespace Managers
         }
 
         #region ProcessRound
+        private async UniTask<AnimatorStateInfo> WaitForAnimatorStateEntry(
+            Animator animator,
+            int previousStateHash,
+            CancellationToken cancellationToken)
+        {
+            if (animator == null)
+            {
+                return default;
+            }
 
+            float elapsed = 0f;
+            float timeout = 1.5f;
+
+            while (elapsed < timeout)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!animator.IsInTransition(AnimationLayerIndex))
+                {
+                    AnimatorStateInfo stateInfo =
+                        animator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
+
+                    if (stateInfo.fullPathHash != previousStateHash)
+                    {
+                        return stateInfo;
+                    }
+                }
+
+                elapsed += Time.deltaTime;
+
+                await UniTask.Yield(
+                    PlayerLoopTiming.Update,
+                    cancellationToken
+                );
+            }
+
+            return default;
+        }
         private async UniTask<bool> ProcessRound(HandType playerHand, CancellationToken cancellationToken)
         {
             _canInput = false;
@@ -895,32 +1121,106 @@ namespace Managers
                 ? GetRandomTrigger(_playerWinTriggers, "Win")
                 : null;
 
+            // === 승리/패배 연출 준비 ===
             if (result == GameResult.Win)
             {
-                if (_tutorial != null) _tutorial.MarkVictoryMotion();
+                if (_tutorial != null)
+                {
+                    _tutorial.MarkVictoryMotion();
+                }
+
                 // 1. 티라노 + 현재 카메라 공통 상승
                 await RaiseTyrannoWithCamera(cancellationToken);
 
-                if (_camController != null)
-                {
-                    // 2. Cinemachine 다시 활성화
-                    _camController.RestoreCinemachine();
+                Debug.Log(
+                    $"[Camera Debug] After Raise: " +
+                    $"{Camera.main.transform.position}"
+                );
 
-                    // 3. Spline 카메라 이동 시작
-                    // 기다리지 않고 백그라운드로 실행
-                    _camController.PlayWinSplineCamera(
-                        playerWinTrigger,
+            }
+            // 3. 배틀 애니메이션 재생
+            var battleAnimation = PlayBattleAnimations(result, playerWinTrigger);
+
+            // 4. 승리 애니메이션의 실제 길이를 감지하고 Spline 실행
+            if (result == GameResult.Win && _camController != null)
+            {
+                AnimatorStateInfo victoryStateInfo =
+                    await WaitForAnimatorStateEntry(
+                        _playerAnimator,
+                        playerStateHashBeforeBattle,
                         cancellationToken
-                    ).Forget();
+                    );
+
+                if (victoryStateInfo.fullPathHash != 0)
+                {
+                    // 실제 재생 중인 Animation Clip 가져오기
+                    AnimatorClipInfo[] clips =
+                        _playerAnimator.GetCurrentAnimatorClipInfo(AnimationLayerIndex);
+
+                    if (clips.Length > 0)
+                    {
+                        AnimatorClipInfo clipInfo = clips[0];
+
+                        // 실제 애니메이션 재생 속도 계산
+                        float playbackSpeed =
+                            _playerAnimator.speed *
+                            victoryStateInfo.speed *
+                            victoryStateInfo.speedMultiplier;
+
+                        // 애니메이션의 남은 진행 비율
+                        float remainingProgress =
+                            Mathf.Clamp01(1f - victoryStateInfo.normalizedTime);
+
+                        // 실제 클립 길이를 기준으로 남은 시간 계산
+                        float actualRemainingDuration =
+                            clipInfo.clip.length *
+                            remainingProgress /
+                            Mathf.Max(0.01f, Mathf.Abs(playbackSpeed));
+
+                        Debug.Log(
+                            $"[Win Animation] " +
+                            $"Clip: {clipInfo.clip.name}, " +
+                            $"Clip Length: {clipInfo.clip.length:F2}s, " +
+                            $"State Length: {victoryStateInfo.length:F2}s, " +
+                            $"Playback Speed: {playbackSpeed:F2}, " +
+                            $"Normalized Time: {victoryStateInfo.normalizedTime:F2}, " +
+                            $"Remaining Duration: {actualRemainingDuration:F2}s"
+                        );
+                        _camController.RestoreCinemachine();
+
+                        // 애니메이션 종료 시점에 맞춰 Spline 실행
+                        _camController.PlayWinSplineCamera(
+                            playerWinTrigger,
+                            actualRemainingDuration,
+                            cancellationToken
+                        ).Forget();
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[Win Animation] 재생 중인 Animation Clip을 찾지 못했습니다.");
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        "[Win Animation] 승리 애니메이션 State 진입을 감지하지 못했습니다."
+                    );
                 }
             }
 
-            var battleAnimation = PlayBattleAnimations(result, playerWinTrigger);
+            // 5. 비승리 결과의 기존 카메라 처리
             bool isChickenFinalDefeat = IsChickenFinalDefeat(result);
-            if (battleAnimation.HasWinner && _camController != null && result != GameResult.Win)
+
+            if (battleAnimation.HasWinner &&
+                _camController != null &&
+                result != GameResult.Win)
             {
                 _camController.RestoreCinemachine();
-                _camController.SwitchWinCamera(battleAnimation.PlayerWon, battleAnimation.WinnerTrigger);
+
+                _camController.SwitchWinCamera(
+                    battleAnimation.PlayerWon,
+                    battleAnimation.WinnerTrigger
+                );
             }
 
             if (_uiManager != null)
@@ -952,6 +1252,7 @@ namespace Managers
                     playerStateHashBeforeBattle,
                     opponentStateHashBeforeBattle,
                     cancellationToken);
+
                 StopResultSfx();
 
                 // 닭이 돌아갈 기본 위치 저장
@@ -1445,7 +1746,8 @@ namespace Managers
             chicken.localRotation = fallenRotation;
         }
 
-        private async UniTask RaiseTyrannoWithCamera(CancellationToken cancellationToken)
+        private async UniTask RaiseTyrannoWithCamera(
+            CancellationToken cancellationToken)
         {
             if (_playerAnimator == null)
             {
@@ -1463,19 +1765,29 @@ namespace Managers
 
             Camera mainCamera = Camera.main;
 
-            Vector3 cameraStartPosition = mainCamera != null
-                ? mainCamera.transform.position
-                : Vector3.zero;
+            Vector3 cameraStartPosition = Vector3.zero;
+            Vector3 cameraTargetPosition = Vector3.zero;
 
-            Vector3 cameraTargetPosition = cameraStartPosition
-                + Vector3.up
-                * (tyrannoTargetPosition.y - tyrannoStartPosition.y);
-
-            // 상승 연출 동안 Cinemachine 제어 중지
             Unity.Cinemachine.CinemachineBrain brain = null;
 
             if (mainCamera != null)
             {
+                // 기존 카메라 위치를 기준으로 시작 위치를 보정
+                cameraStartPosition =
+                    mainCamera.transform.position
+                    + _tyrannoWinCameraStartOffset;
+
+                // 티라노가 상승하는 높이만큼 카메라도 상승.
+                // 도착 위치에서 추가 보정값을 적용한다.
+                float riseHeight =
+                    tyrannoTargetPosition.y - tyrannoStartPosition.y;
+
+                cameraTargetPosition =
+                    cameraStartPosition
+                    + Vector3.up * riseHeight
+                    + _tyrannoWinCameraEndOffset;
+
+                // 상승 구간에서는 Main Camera를 직접 제어
                 brain = mainCamera.GetComponent<
                     Unity.Cinemachine.CinemachineBrain>();
 
@@ -1483,6 +1795,8 @@ namespace Managers
                 {
                     brain.enabled = false;
                 }
+
+                mainCamera.transform.position = cameraStartPosition;
             }
 
             float elapsed = 0f;
@@ -1500,21 +1814,20 @@ namespace Managers
                     Mathf.SmoothStep(0f, 1f, normalizedTime);
 
                 // 티라노 상승
-                tyranno.position = Vector3.LerpUnclamped(
+                tyranno.position = Vector3.Lerp(
                     tyrannoStartPosition,
                     tyrannoTargetPosition,
                     easedTime);
 
-                // 카메라도 동일한 Y 거리만큼 상승
                 if (mainCamera != null)
                 {
-                    mainCamera.transform.position =
-                        Vector3.LerpUnclamped(
-                            cameraStartPosition,
-                            cameraTargetPosition,
-                            easedTime);
+                    // 카메라 이동
+                    mainCamera.transform.position = Vector3.Lerp(
+                        cameraStartPosition,
+                        cameraTargetPosition,
+                        easedTime);
 
-                    // 계속 티라노 바라보기
+                    // 티라노를 바라보도록 회전
                     Vector3 lookTarget =
                         tyranno.position
                         + Vector3.up * _tyrannoWinCameraLookOffsetY;
@@ -1536,9 +1849,30 @@ namespace Managers
                     cancellationToken);
             }
 
+            // 마지막 프레임 위치 보정
             tyranno.position = tyrannoTargetPosition;
 
-        }   
+            if (mainCamera != null)
+            {
+                mainCamera.transform.position = cameraTargetPosition;
+
+                Vector3 lookTarget =
+                    tyranno.position
+                    + Vector3.up * _tyrannoWinCameraLookOffsetY;
+
+                Vector3 lookDirection =
+                    lookTarget - mainCamera.transform.position;
+
+                if (lookDirection.sqrMagnitude > 0.0001f)
+                {
+                    mainCamera.transform.rotation =
+                        Quaternion.LookRotation(
+                            lookDirection,
+                            Vector3.up);
+                }
+            }
+        }
+
 
         private async UniTask MoveCameraToChickenFront(
             CancellationToken cancellationToken)
@@ -1642,7 +1976,7 @@ namespace Managers
                 );
             }
 
-            return (HandType)Random.Range(0, 3);
+            return (HandType)UnityEngine.Random.Range(0, 3);
         }
 
         #endregion
@@ -1690,7 +2024,7 @@ namespace Managers
                 {
                     case GameResult.Win:
                         string playerWinTrigger = string.IsNullOrWhiteSpace(configuredPlayerWinTrigger)
-                            ? GetRandomTrigger(_playerWinTriggers, "Win")
+                            ? GetRandomTrigger(_playerWinTriggers, "Win3")
                             : configuredPlayerWinTrigger;
                         _playerAnimator.SetTrigger(playerWinTrigger);
                         if (_opponentAnimator != null)
@@ -1734,7 +2068,7 @@ namespace Managers
                 return fallback;
             }
 
-            string trigger = triggers[Random.Range(0, triggers.Length)];
+            string trigger = triggers[UnityEngine.Random.Range(0, triggers.Length)];
             return string.IsNullOrWhiteSpace(trigger) ? fallback : trigger;
         }
 
@@ -1768,65 +2102,89 @@ namespace Managers
         }
 
         private async UniTask WaitForAnimatorStateCycle(
-            Animator animator,
-            int previousStateHash,
-            CancellationToken cancellationToken)
-        {
-            if (animator == null)
+        Animator animator,
+        int previousStateHash,
+        CancellationToken cancellationToken)
             {
-                return;
-            }
-
-            float waitForEnterTimeout = 1.5f;
-            float waitForEndTimeout = Mathf.Max(1f, _danceAnimationDuration + 1f);
-            float elapsed = 0f;
-            int enteredStateHash = 0;
-
-            while (elapsed < waitForEnterTimeout)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (!animator.IsInTransition(AnimationLayerIndex))
+                if (animator == null)
                 {
-                    AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
-                    if (stateInfo.fullPathHash != previousStateHash)
+                    return;
+                }
+
+                float elapsed = 0f;
+                int enteredStateHash = 0;
+
+                // 1. 새로운 애니메이션 State 진입 대기
+                while (elapsed < animationEnterTimeout)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (!animator.IsInTransition(AnimationLayerIndex))
                     {
-                        enteredStateHash = stateInfo.fullPathHash;
+                        AnimatorStateInfo stateInfo =
+                            animator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
+
+                        if (stateInfo.fullPathHash != previousStateHash)
+                        {
+                            enteredStateHash = stateInfo.fullPathHash;
+                            break;
+                        }
+                    }
+
+                    elapsed += Time.deltaTime;
+
+                    await UniTask.Yield(
+                        PlayerLoopTiming.Update,
+                        cancellationToken);
+                }
+
+                // 새로운 State에 진입하지 못했다면 종료
+                if (enteredStateHash == 0)
+                {
+                    return;
+                }
+
+                // 2. 실제 애니메이션 재생 종료 대기
+                elapsed = 0f;
+
+                while (elapsed < animationMaxWaitTime)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    bool isInTransition =
+                        animator.IsInTransition(AnimationLayerIndex);
+
+                    AnimatorStateInfo stateInfo =
+                        animator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
+
+                    // 다른 State로 전환됐다면 종료
+                    if (stateInfo.fullPathHash != enteredStateHash)
+                    {
+                        return;
+                    }
+
+                    // 애니메이션 재생 완료
+                    if (!isInTransition && stateInfo.normalizedTime >= 1f)
+                    {
                         break;
                     }
+
+                    elapsed += Time.deltaTime;
+
+                    await UniTask.Yield(
+                        PlayerLoopTiming.Update,
+                        cancellationToken);
                 }
 
-                elapsed += Time.deltaTime;
-                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
-            }
-
-            if (enteredStateHash == 0)
-            {
-                return;
-            }
-
-            elapsed = 0f;
-            while (elapsed < waitForEndTimeout)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                bool isInTransition = animator.IsInTransition(AnimationLayerIndex);
-                AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(AnimationLayerIndex);
-
-                if (stateInfo.fullPathHash != enteredStateHash)
+                // 3. 애니메이션 종료 후 추가 감상 시간
+                if (elapsed < animationMaxWaitTime &&
+                    winAnimationExtraTime > 0f)
                 {
-                    return;
+                    await UniTask.Delay(
+                        TimeSpan.FromSeconds(winAnimationExtraTime),
+                        cancellationToken: cancellationToken);
                 }
-
-                if (!isInTransition && stateInfo.normalizedTime >= 1f)
-                {
-                    return;
-                }
-
-                elapsed += Time.deltaTime;
-                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
             }
-        }
 
         #endregion
 
