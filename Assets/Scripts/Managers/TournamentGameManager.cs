@@ -194,8 +194,8 @@ namespace Managers
 
 
         [Header("티라노 상승 카메라 위치 조절")]
-        [Tooltip("상승 시작 시 카메라 위치 보정값 (월드 좌표 기준)")]
-        [SerializeField] private Vector3 _tyrannoWinCameraStartOffset = Vector3.zero;
+        [Tooltip("상승 시작 시 카메라 위치값 (월드 좌표 기준)")]
+        [SerializeField] private Vector3 _tyrannoWinCameraStartPosition = Vector3.zero;
 
         [Tooltip("티라노가 목표 높이에 도착했을 때 카메라의 추가 위치 보정값")]
         [SerializeField] private Vector3 _tyrannoWinCameraEndOffset = Vector3.zero;
@@ -1772,10 +1772,8 @@ namespace Managers
 
             if (mainCamera != null)
             {
-                // 기존 카메라 위치를 기준으로 시작 위치를 보정
-                cameraStartPosition =
-                    mainCamera.transform.position
-                    + _tyrannoWinCameraStartOffset;
+                // 시작 위치 이동
+                cameraStartPosition = _tyrannoWinCameraStartPosition;
 
                 // 티라노가 상승하는 높이만큼 카메라도 상승.
                 // 도착 위치에서 추가 보정값을 적용한다.

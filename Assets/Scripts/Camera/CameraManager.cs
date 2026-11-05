@@ -19,6 +19,17 @@ public class CameraManager : MonoBehaviour
     }
 
     bool isStartBattle = true;
+
+    [Header("Win Spline Slowdown")]
+    [SerializeField, Range(0f, 1f)]
+    private float _winSplineSlowdownStart = 0.5f;
+
+    [SerializeField, Range(0f, 1f)]
+    private float _winSplineSlowdownEnd = 0.65f;
+
+    [SerializeField, Range(0.01f, 1f)]
+    private float _winSplineSlowSpeed = 0.2f;
+
     [SerializeField] private bool _playIntroOnStart = true;
     private Coroutine _introSequence;
     private bool _introZoomOutAllowed;
@@ -231,10 +242,11 @@ public class CameraManager : MonoBehaviour
 
         splineDolly.CameraPosition = 1f;
     }
+
     public async UniTask PlayWinSplineCamera(
-    string triggerName,
-    float animationDuration,
-    CancellationToken cancellationToken)
+        string triggerName,
+        float animationDuration,
+        CancellationToken cancellationToken)
     {
         // Trigger에 맞는 카메라 Binding 찾기
         AnimationCameraBinding binding =
@@ -268,28 +280,41 @@ public class CameraManager : MonoBehaviour
         // Spline 시작점으로 초기화
         splineDolly.CameraPosition = 0f;
 
-        // Spline 이동
         if (binding.moveAlongSpline)
         {
-            float duration = Mathf.Max(0.05f, animationDuration);
             float elapsed = 0f;
 
-            while (elapsed < duration)
+            while (elapsed < animationDuration)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / animationDuration);
 
-                float t = Mathf.Clamp01(elapsed / duration);
+                float speedMultiplier = 1f;
+
+                if (triggerName == "Win")
+                {
+                    if (t >= _winSplineSlowdownStart &&
+                        t <= _winSplineSlowdownEnd)
+                    {
+                        speedMultiplier = _winSplineSlowSpeed;
+                    }
+                }
 
                 splineDolly.CameraPosition = t;
 
-                await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+                elapsed += Time.deltaTime * speedMultiplier;
+
+                await UniTask.Yield(
+                    PlayerLoopTiming.Update,
+                    cancellationToken
+                );
             }
 
             splineDolly.CameraPosition = 1f;
         }
     }
+
     private static AnimationCameraBinding FindBindingForTrigger(
     AnimationCameraBinding[] bindings,
     string triggerName)
